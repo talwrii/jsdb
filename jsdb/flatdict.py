@@ -82,7 +82,6 @@ class JsonFlatteningDict(collections.MutableMapping):
         return child_path.prefix().parent().key() == self._prefix
 
     def _key_after_iter(self, key_after):
-
         # If we can do ordering-based lookups (and hence
         #   prefix-based) queries efficiently then
         #   iter becomes a lot more efficient
@@ -118,38 +117,8 @@ class JsonFlatteningDict(collections.MutableMapping):
             except KeyError:
                 break
 
-    def _purge_prefix(self, prefix):
-        try:
-            key_after = key_after_func(self._underlying)
-        except KeyError:
-            return
-
-        if key_after:
-            self._key_after_purge_prefix(key_after, prefix)
-        else:
-            self._inefficient_purge_prefix(prefix)
-
-    def _inefficient_purge_prefix(self, prefix):
-        for key in list(self._underlying):
-            if key.startswith(prefix):
-                del self._underlying[key]
-
-    def _key_after_purge_prefix(self, key_after, prefix):
-        if prefix in self._underlying:
-            del self._underlying[prefix]
-
-        while True:
-            try:
-                key = key_after(self._underlying, prefix)
-            except KeyError:
-                break
-            if not key.startswith(prefix):
-                break
-            else:
-                del self._underlying[key]
-
     def __delitem__(self, key):
-        self._purge_prefix(self._path.dict().lookup(key).key())
+        self._flat_store.purge_prefix(self._path.dict().lookup(key).key())
 
     def __setitem__(self, key, value):
         #LOGGER.debug('%r: Setting %r -> %r', self, key, value)
@@ -157,8 +126,6 @@ class JsonFlatteningDict(collections.MutableMapping):
             raise ValueError(key)
 
         self.pop(key, None)
-
-
         if isinstance(value, (int, str, float, types.NoneType, bool)):
             flat_key = self._path.dict().lookup(key).value().key()
             self._underlying[flat_key] = value
@@ -227,6 +194,8 @@ class JsonFlatteningList(collections.MutableSequence):
             if not 0 <= index < len(self):
                 raise IndexError('assignment out of range')
 
+        self._flat_store.purge_prefix(self._path.list().index(index).key())
+
         if isinstance(value, (int, str, float, types.NoneType, bool)):
             self._underlying[self._path.list().index(index).value().key()] = value
         elif isinstance(value, (dict, JsonFlatteningDict)):
@@ -257,7 +226,7 @@ class JsonFlatteningList(collections.MutableSequence):
                 continue
             else:
                 self[i] = self[i + 1]
-        del self._underlying[self._path.list().index(length - 1).value().key()]
+        self._flat_store.purge_prefix(self._path.list().index(length - 1).key())
 
     def insert(self, pos, value):
         # We need to do our own value shifting
@@ -314,6 +283,38 @@ class FlatteningStore(object):
 
     def _has_terminal_key(self, item_prefix):
         return item_prefix + "=" in self._underlying
+
+    def purge_prefix(self, prefix):
+        "Remove everythign in the store that starts with this prefix"
+        try:
+            key_after = key_after_func(self._underlying)
+        except KeyError:
+            return
+
+        if key_after:
+            self._key_after_purge_prefix(key_after, prefix)
+        else:
+            self._inefficient_purge_prefix(prefix)
+
+    def _key_after_purge_prefix(self, key_after, prefix):
+        if prefix in self._underlying:
+            del self._underlying[prefix]
+
+        while True:
+            try:
+                key = key_after(self._underlying, prefix)
+            except KeyError:
+                break
+            if not key.startswith(prefix):
+                break
+            else:
+                del self._underlying[key]
+
+    def _inefficient_purge_prefix(self, prefix):
+        for key in list(self._underlying):
+            if key.startswith(prefix):
+                del self._underlying[key]
+
 
 class FakeOrderedDict(dict):
     "An inefficiently 'ordered' dict for testing (allows us to avoid use bsddb"
@@ -498,6 +499,12 @@ class TestFlatDict(unittest.TestCase):
         d['a'] = []
         d['a'].insert(0, [])
         d['a'].insert(0, [])
+
+    def test_list_pop(self):
+        d = JsonFlatteningDict(FakeOrderedDict())
+        d['a'] = []
+        d['a'].insert(0, [])
+        d['a'].pop()
 
 
 if __name__ == '__main__':
