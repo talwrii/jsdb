@@ -155,61 +155,114 @@ class TestJsdb(unittest.TestCase):
         self.assertEquals(set(iter(d)), set(["one", "nested", "two"]))
         self.assertTrue(store.key_after_called)
 
-
 class JsdbFuzzTest(unittest.TestCase):
     def setUp(self):
         self.direc = tempfile.mkdtemp()
         self._filename = os.path.join(self.direc, 'file.jsdb')
         self.maxDiff = 1300
 
-    def test_fuzz(self):
+    def test_flattening_dict_ordered(self):
+        make_dict = lambda: flatdict.JsonFlatteningDict(flatdict.FakeOrderedDict())
+        self.assert_fuzz(make_dict)
+
+    def test_flattening_dict_unordered(self):
+        make_dict = lambda: flatdict.JsonFlatteningDict(dict())
+        self.assert_fuzz(make_dict)
+
+    def assert_fuzz(self, make_dict, commit_dict=False):
         # to have confidence that this actually works
         #   we will perform random insertions and deletions
         #   and check that the structure matches a normal json options
 
         json_dict = dict()
-        db = Jsdb(self._filename)
+        db = make_dict()
 
-        while True:
-            paths = list(self.dict_insertion_path(json_dict))
-            path = random.choice(paths)
-            action = self.random_path_action(path)
+        equivalent_code = [] # Make it easy to mess with code
 
-            LOGGER.debug('Fuzz action %s %r', action, path)
 
-            if action == 'dict-insert':
-                key = self.random_key()
-                value = self.random_value()
-                LOGGER.debug('Inserting %r -> %r', key, value)
-                self.lookup_path(db, path)[key] = value
-                self.lookup_path(json_dict, path)[key] = value
-            elif action == 'list-insert':
-                value = self.random_value()
-                LOGGER.debug('Inserting %r', value)
-                json_lst = self.lookup_path(json_dict, path)
-                db_list = self.lookup_path(db, path)
-                point = random.randint(0, len(json_lst))
-                json_lst.insert(point, value)
-                db_list.insert(point, value)
-            elif action == 'list-pop':
-                value = self.random_value()
-                lst = self.lookup_path(json_dict, path)
-                db_list = self.lookup_path(db, path)
-                if lst:
-                    lst.pop()
-                    db_list.pop()
-            elif action == 'dict-modify':
-                value = self.random_value()
-                self.set_path(db, path, value)
-                self.set_path(json_dict, path, value)
-            elif action == 'dict-delete':
-                self.set_path(db, path, None, delete=True)
-                self.set_path(json_dict, path, None, delete=True)
-            else:
-                raise ValueError(action)
+        try:
+            for _ in itertools.count(0):
+                paths = list(self.dict_insertion_path(json_dict))
+                path = random.choice(paths)
+                action = self.random_path_action(path)
 
-            # LOGGER.debug('%s', pprint.pformat(json_dict))
-            self.assertEquals(python_copy.copy(db), json_dict)
+                LOGGER.debug('Fuzz action %s %r', action, path)
+
+                if action == 'dict-insert':
+                    key = self.random_key()
+                    value = self.random_value()
+                    LOGGER.debug('Inserting %r -> %r', key, value)
+                    equivalent_code.append('d{}[{!r}] = {!r}'.format(self.code_path(path), key, value))
+                    self.lookup_path(db, path)[key] = value
+                    self.lookup_path(json_dict, path)[key] = value
+                elif action == 'list-insert':
+                    value = self.random_value()
+                    json_lst = self.lookup_path(json_dict, path)
+                    db_list = self.lookup_path(db, path)
+                    point = random.randint(0, len(json_lst))
+                    LOGGER.debug('Inserting %r at %r', value, point)
+                    equivalent_code.append('d{}.insert({!r}, {!r})'.format(self.code_path(path), point, value))
+                    json_lst.insert(point, value)
+                    db_list.insert(point, value)
+                elif action == 'list-pop':
+                    value = self.random_value()
+
+                    equivalent_code.append('d{}.pop()'.format(self.code_path(path)))
+
+                    lst = self.lookup_path(json_dict, path)
+                    db_list = self.lookup_path(db, path)
+                    if lst:
+                        try:
+                            lst.pop()
+                        except IndexError:
+                            pass
+
+                        try:
+                            db_list.pop()
+                        except IndexError:
+                            pass
+
+                elif action == 'dict-modify':
+                    value = self.random_value()
+
+                    LOGGER.debug('Modifying %r -> %r', path, value)
+                    equivalent_code.append('d{}[{!r}] = {!r}'.format(self.code_path(path), key, value))
+
+                    self.set_path(db, path, value)
+                    self.set_path(json_dict, path, value)
+                elif action == 'list-modify':
+                    value = self.random_value()
+
+                    LOGGER.debug('Modifying %r -> %r', path, value)
+                    equivalent_code.append('d{} = {!r}'.format(self.code_path(path), value))
+
+                    self.set_path(db, path, value)
+                    self.set_path(json_dict, path, value)
+
+                elif action == 'dict-delete':
+                    equivalent_code.append('del d{}'.format(self.code_path(path)))
+                    self.set_path(json_dict, path, None, delete=True)
+                    self.set_path(db, path, None, delete=True)
+                elif action == 'list-del':
+                    equivalent_code.append('del d{}'.format(self.code_path(path)))
+                    self.set_path(db, path, None, delete=True)
+                    self.set_path(json_dict, path, None, delete=True)
+                else:
+                    raise ValueError(action)
+
+                # LOGGER.debug('%s', pprint.pformat(json_dict))
+                if commit_dict:
+                    db.commit()
+
+                self.assertEquals(python_copy.copy(db), json_dict)
+        except:
+            print '\n'.join(equivalent_code)
+            print len(equivalent_code), 'Instructions'
+            raise
+
+    def code_path(self, path):
+        _, path = path
+        return ''.join('[{!r}]'.format(part) for part in path)
 
     def random_key(self):
         length = random.randint(0, 40)
@@ -245,6 +298,10 @@ class JsdbFuzzTest(unittest.TestCase):
             return weighted_random_choice({
                 'list-insert': self.DICT_MODIFY_WEIGHT,
                 'list-pop': self.DICT_DEL_WEIGHT})
+        elif type == 'list-item':
+            return weighted_random_choice({
+                'list-modify': self.DICT_MODIFY_WEIGHT,
+                'list-del': self.DICT_DEL_WEIGHT})
         else:
             raise ValueError(type)
 
@@ -293,7 +350,7 @@ class JsdbFuzzTest(unittest.TestCase):
                     action, path = descendant_path
                     yield action, (i,) + path
             elif isinstance(v, list):
-                for path in cls.list_insertion_path(v):
+                for descendant_path in cls.list_insertion_path(v):
                     action, path = descendant_path
                     yield action, (i,) + path
             else:
