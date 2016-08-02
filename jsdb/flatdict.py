@@ -129,13 +129,13 @@ class JsonFlatteningDict(collections.MutableMapping):
         if isinstance(value, (int, str, float, types.NoneType, bool)):
             flat_key = self._path.dict().lookup(key).value().key()
             self._underlying[flat_key] = value
-        elif isinstance(value, dict):
+        elif isinstance(value, (dict, JsonFlatteningDict)):
             base_path = self._path.dict().lookup(key)
             self._underlying[base_path.dict().key()] = True
             dict_store = self[key]
             for dict_key in value:
                 dict_store[dict_key] = value[dict_key]
-        elif isinstance(value, list):
+        elif isinstance(value, (list, JsonFlatteningList)):
             base_path = self._path.dict().lookup(key)
             self._underlying[base_path.list().key()] = True
 
