@@ -229,13 +229,13 @@ class JsonFlatteningList(collections.MutableSequence):
 
         if isinstance(value, (int, str, float, types.NoneType, bool)):
             self._underlying[self._path.list().index(index).value().key()] = value
-        elif isinstance(value, dict):
+        elif isinstance(value, (dict, JsonFlatteningDict)):
             dict_key = self._path.list().index(index)
             self._underlying[dict_key.dict().key()] = True
             nested_dict = self[index]
             for key, nested_value in value.items():
                 nested_dict[key] = nested_value
-        elif isinstance(value, list):
+        elif isinstance(value, (list, JsonFlatteningList)):
             list_key = self._path.list().index(index)
             self._underlying[list_key.list().key()] = True
             nested_list = self[index]
@@ -492,6 +492,12 @@ class TestFlatDict(unittest.TestCase):
         self.assertEquals(len(d), 1)
         d['nested'].append([])
         self.assertEquals(len(d['nested']), 1)
+
+    def test_moving_nested(self):
+        d = JsonFlatteningDict(FakeOrderedDict())
+        d['a'] = []
+        d['a'].insert(0, [])
+        d['a'].insert(0, [])
 
 
 if __name__ == '__main__':
