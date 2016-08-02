@@ -133,7 +133,7 @@ class JsonFlatteningDict(collections.MutableMapping):
             base_path = self._path.dict().lookup(key)
             self._underlying[base_path.dict().key()] = True
             dict_store = self[key]
-            for dict_key in value:
+            for dict_key in list(value):
                 dict_store[dict_key] = value[dict_key]
         elif isinstance(value, (list, JsonFlatteningList)):
             base_path = self._path.dict().lookup(key)
@@ -202,7 +202,7 @@ class JsonFlatteningList(collections.MutableSequence):
             dict_key = self._path.list().index(index)
             self._underlying[dict_key.dict().key()] = True
             nested_dict = self[index]
-            for key, nested_value in value.items():
+            for key, nested_value in list(value.items()):
                 nested_dict[key] = nested_value
         elif isinstance(value, (list, JsonFlatteningList)):
             list_key = self._path.list().index(index)
