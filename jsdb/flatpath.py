@@ -149,16 +149,27 @@ class FlatPath(object):
         self.ensure_type(PrefixPath)
         return FlatPath(self._prefix + '.')
 
+    def list(self):
+        self.ensure_type(PrefixPath)
+        return FlatPath(self._prefix + '[')
+
     def key_string(self):
         self.ensure_type(DictPrefixPath)
         _, string  = self._remove_terminal_string(self.prefix().key())
         return string
 
+    def index_number(self):
+        self.ensure_type(ListPrefixPath)
+        prefix = self._remove(self._prefix, ']')
+        prefix, integer_string = self._remove_terminal_integer(prefix)
+        self._remove(prefix, '[')
+        return int(integer_string)
+
     def parent(self):
         # Yes we could do this with a parser
         if isinstance(self.path_type(), ListPrefixPath):
             prefix = self._remove(self._prefix, ']')
-            prefix = self._remove_terminal_integer(prefix)
+            prefix, _ = self._remove_terminal_integer(prefix)
             prefix = self._remove(prefix, '[')
             return FlatPath(prefix)
         elif isinstance(self.path_type(), DictPrefixPath):
@@ -170,12 +181,14 @@ class FlatPath(object):
 
     @staticmethod
     def _remove_terminal_integer(string):
+        integer_string = []
         while True:
             if string[-1] in "0123456789":
+                integer_string.append(string[-1])
                 string = string[:-1]
             else:
                 break
-        return string
+        return string, ''.join(reversed(integer_string))
 
     @classmethod
     def _remove_terminal_string(cls, string):
@@ -215,12 +228,19 @@ class FlatPath(object):
             raise ValueError(string[-1])
 
     def lookup(self, key):
-        if not self._prefix.endswith('.'):
-            raise ValueError(self._prefix)
-        else:
-            return FlatPath(self._prefix + '"{}"'.format(escape_double_quote(key)))
+        self.ensure_type(DictPath)
+        return FlatPath(self._prefix + '"{}"'.format(escape_double_quote(key)))
+
+    def index(self, index):
+        self.ensure_type(ListPath)
+
+        if not isinstance(index, int):
+            raise ValueError(index)
+
+        return FlatPath(self._prefix + '{}]'.format(index))
 
     def value(self):
+        """A path representing the value of a particular prefix"""
         # e.g ."hello"[0] -> ."hello"[0]=
         self.ensure_type(PrefixPath)
         return FlatPath(self._prefix + '=')
