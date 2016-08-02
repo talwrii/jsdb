@@ -232,13 +232,10 @@ class JsonFlatteningList(collections.MutableSequence):
         # We need to do our own value shifting
         inserted_value = value
         length = len(self)
-        for i in range(length):
-            if i < pos:
-                continue
-            else:
-                self[i], inserted_value = inserted_value, self[i]
-        self._set_item(length, inserted_value, check_index=False)
-
+        # Copy upwards to avoid temporary values
+        for i in range(length, pos, -1):
+            self._set_item(i, self[i - 1], check_index=False)
+        self._set_item(pos, inserted_value, check_index=False)
 
 class FlatteningStore(object):
     def __init__(self, underlying):
@@ -505,6 +502,22 @@ class TestFlatDict(unittest.TestCase):
         d['a'] = []
         d['a'].insert(0, [])
         d['a'].pop()
+
+    def test_nested_list_insert(self):
+        d = JsonFlatteningDict(FakeOrderedDict())
+        d['a'] = []
+        d['a'].insert(0, [])
+        d['a'][0].insert(0, None)
+        d['a'].insert(0, 'f')
+        self.assertEquals(python_copy.copy(d['a']), ['f', [None]])
+
+    def test_dict_moving(self):
+        d = JsonFlatteningDict(FakeOrderedDict())
+        d['b'] = []
+        d['b'].insert(0, {})
+        d['b'][0]['c'] = {}
+        d['b'].insert(0, 'test')
+
 
 
 if __name__ == '__main__':
