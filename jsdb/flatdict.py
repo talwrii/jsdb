@@ -10,6 +10,7 @@ import unittest
 from . import python_copy
 from .flatpath import FlatPath
 from . import flatpath
+from .data import JSON_TYPES
 
 LOGGER = logging.getLogger('jsdb.flatdict')
 

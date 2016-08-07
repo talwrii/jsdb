@@ -1,9 +1,8 @@
 import collections
-import copy
 import unittest
-import types
 
 from . import python_copy
+from .data import JSON_TYPES
 
 class _Deleted(object):
     def __repr__(self):
@@ -18,7 +17,7 @@ class RollbackableMixin(object):
         if stored == DELETED:
             raise KeyError(key)
 
-        if not isinstance(stored, (dict, types.NoneType, list, float, int, str, unicode, RollbackDict, RollbackList)):
+        if not isinstance(stored, JSON_TYPES):
             print repr(stored)
             raise ValueError(stored)
         if isinstance(stored, dict):
