@@ -5,19 +5,16 @@ import collections
 import json
 import logging
 import os
-import pprint
-import random
 import shutil
 import tempfile
 import unittest
+import types
 
 from . import python_copy
-from .flatpath import FlatPath
 from .rollback_dict import RollbackDict
+from . import flatdict
 
 LOGGER = logging.getLogger('jsdb')
-
-ASCII_TOP = '\xff'
 
 class Jsdb(collections.MutableMapping):
     """A file-backed, persisted-object graph supporting json types"""
@@ -33,7 +30,7 @@ class Jsdb(collections.MutableMapping):
 
         if self._db is None:
             self._data_file = bsddb.btopen(self._filename, 'w')
-            self._db = RollbackDict(JsonEncodeDict(self._data_file))
+            self._db = RollbackDict(flatdict.JsonFlatteningDict(JsonEncodeDict(self._data_file)))
 
     def __getitem__(self, key):
         self._open()
@@ -128,244 +125,20 @@ class TestJsdb(unittest.TestCase):
         db = Jsdb(self._filename)
         self.assertEquals(db['key'], 1.0)
 
-    def test_flattening_mapping_basic(self):
-        store = dict()
-        d = flatdict.JsonFlatteningDict(store)
+    def test_dict(self):
+        db = Jsdb(self._filename)
+        db['a'] = {}
+        db.commit()
+        python_copy.copy(db)
 
-        self.assertFalse("test" in d)
-        d["test"] = 1
-        self.assertEquals(d["test"], 1)
+    def test_fuzz1(self):
+        d = Jsdb(self._filename)
+        d['a'] = []
+        d.commit()
+        d['a'].insert(0, 17)
+        d.commit()
+        self.assertEquals(d['a'][0], 17)
 
-    def test_flattening_mapping_iter(self):
-        store = dict()
-        d = flatdict.JsonFlatteningDict(store)
-        d["one"] = 1
-        d["nested"] = dict(depth=2)
-        d["two"] = 2
-        self.assertEquals(set(iter(d)), set(["one", "nested", "two"]))
-
-    def test_flattening_mapping_with_sorting(self):
-        store = flatdict.FakeOrderedDict()
-        d = flatdict.JsonFlatteningDict(store)
-
-        d["one"] = 1
-        d["nested"] = dict(depth=2)
-        d["two"] = 2
-
-        self.assertEquals(set(iter(d)), set(["one", "nested", "two"]))
-        self.assertTrue(store.key_after_called)
-
-class JsdbFuzzTest(unittest.TestCase):
-    def setUp(self):
-        self.direc = tempfile.mkdtemp()
-        self._filename = os.path.join(self.direc, 'file.jsdb')
-        self.maxDiff = 1300
-
-    def test_flattening_dict_ordered(self):
-        make_dict = lambda: flatdict.JsonFlatteningDict(flatdict.FakeOrderedDict())
-        self.assert_fuzz(make_dict)
-
-    def test_flattening_dict_unordered(self):
-        make_dict = lambda: flatdict.JsonFlatteningDict(dict())
-        self.assert_fuzz(make_dict)
-
-    def assert_fuzz(self, make_dict, commit_dict=False):
-        # to have confidence that this actually works
-        #   we will perform random insertions and deletions
-        #   and check that the structure matches a normal json options
-
-        json_dict = dict()
-        db = make_dict()
-
-        equivalent_code = [] # Make it easy to mess with code
-
-
-        try:
-            for _ in itertools.count(0):
-                paths = list(self.dict_insertion_path(json_dict))
-                path = random.choice(paths)
-                action = self.random_path_action(path)
-
-                LOGGER.debug('Fuzz action %s %r', action, path)
-
-                if action == 'dict-insert':
-                    key = self.random_key()
-                    value = self.random_value()
-                    LOGGER.debug('Inserting %r -> %r', key, value)
-                    equivalent_code.append('d{}[{!r}] = {!r}'.format(self.code_path(path), key, value))
-                    self.lookup_path(db, path)[key] = value
-                    self.lookup_path(json_dict, path)[key] = value
-                elif action == 'list-insert':
-                    value = self.random_value()
-                    json_lst = self.lookup_path(json_dict, path)
-                    db_list = self.lookup_path(db, path)
-                    point = random.randint(0, len(json_lst))
-                    LOGGER.debug('Inserting %r at %r', value, point)
-                    equivalent_code.append('d{}.insert({!r}, {!r})'.format(self.code_path(path), point, value))
-                    json_lst.insert(point, value)
-                    db_list.insert(point, value)
-                elif action == 'list-pop':
-                    value = self.random_value()
-
-                    equivalent_code.append('d{}.pop()'.format(self.code_path(path)))
-
-                    lst = self.lookup_path(json_dict, path)
-                    db_list = self.lookup_path(db, path)
-                    if lst:
-                        try:
-                            lst.pop()
-                        except IndexError:
-                            pass
-
-                        try:
-                            db_list.pop()
-                        except IndexError:
-                            pass
-
-                elif action == 'dict-modify':
-                    value = self.random_value()
-
-                    LOGGER.debug('Modifying %r -> %r', path, value)
-                    equivalent_code.append('d{}[{!r}] = {!r}'.format(self.code_path(path), key, value))
-
-                    self.set_path(db, path, value)
-                    self.set_path(json_dict, path, value)
-                elif action == 'list-modify':
-                    value = self.random_value()
-
-                    LOGGER.debug('Modifying %r -> %r', path, value)
-                    equivalent_code.append('d{} = {!r}'.format(self.code_path(path), value))
-
-                    self.set_path(db, path, value)
-                    self.set_path(json_dict, path, value)
-
-                elif action == 'dict-delete':
-                    equivalent_code.append('del d{}'.format(self.code_path(path)))
-                    self.set_path(json_dict, path, None, delete=True)
-                    self.set_path(db, path, None, delete=True)
-                elif action == 'list-del':
-                    equivalent_code.append('del d{}'.format(self.code_path(path)))
-                    self.set_path(db, path, None, delete=True)
-                    self.set_path(json_dict, path, None, delete=True)
-                else:
-                    raise ValueError(action)
-
-                # LOGGER.debug('%s', pprint.pformat(json_dict))
-                if commit_dict:
-                    db.commit()
-
-                self.assertEquals(python_copy.copy(db), json_dict)
-        except:
-            print '\n'.join(equivalent_code)
-            print len(equivalent_code), 'Instructions'
-            raise
-
-    def code_path(self, path):
-        _, path = path
-        return ''.join('[{!r}]'.format(part) for part in path)
-
-    def random_key(self):
-        length = random.randint(0, 40)
-        return ''.join([random.choice('abcdefghijklm') for _ in range(length)])
-
-    def random_value(self):
-        value_type = weighted_random_choice(dict(str=1, int=1, float=1, bool=1, dict=1, list=1, none=1))
-        if value_type == 'str':
-            return self.random_key()
-        elif value_type == 'int':
-            return random.randint(-1000, 1000)
-        elif value_type == 'float':
-            return (random.random() - 0.5) * 1000
-        elif value_type == 'none':
-            return None
-        elif value_type == 'dict':
-            return dict()
-        elif value_type == 'list':
-            return list()
-        elif value_type == 'bool':
-            return random.choice([True, False])
-        else:
-            raise ValueError(value_type)
-
-    def random_path_action(self, (type, raw_path)):
-        if type == 'dict':
-            return 'dict-insert'
-        elif type == 'dict-key':
-            return weighted_random_choice({
-                'dict-modify': self.DICT_MODIFY_WEIGHT,
-                'dict-delete': self.DICT_DEL_WEIGHT})
-        elif type == 'list':
-            return weighted_random_choice({
-                'list-insert': self.DICT_MODIFY_WEIGHT,
-                'list-pop': self.DICT_DEL_WEIGHT})
-        elif type == 'list-item':
-            return weighted_random_choice({
-                'list-modify': self.DICT_MODIFY_WEIGHT,
-                'list-del': self.DICT_DEL_WEIGHT})
-        else:
-            raise ValueError(type)
-
-    DICT_MODIFY_WEIGHT = 5
-    DICT_DEL_WEIGHT = 1
-
-    def lookup_path(self, data, (type, raw_path)):
-        d = data
-        for k in raw_path:
-            d = d[k]
-        return d
-
-    def set_path(self, data, (type, raw_path), value, delete=False):
-        d = data
-        for k in raw_path[:-1]:
-            d = d[k]
-
-        if delete:
-            del d[raw_path[-1]]
-        else:
-            d[raw_path[-1]] = value
-
-    @classmethod
-    def dict_insertion_path(cls, d):
-        yield ('dict', ())
-        for k in d:
-            if not isinstance(k, str):
-                raise ValueError(k)
-            if isinstance(d[k], dict):
-                for descendant_path in cls.dict_insertion_path(d[k]):
-                    action, path = descendant_path
-                    yield action, (k,) + path
-            elif isinstance(d[k], list):
-                for descendant_path in cls.list_insertion_path(d[k]):
-                    action, path = descendant_path
-                    yield action, (k,) + path
-            else:
-                yield 'dict-key', (k,)
-
-    @classmethod
-    def list_insertion_path(cls, d):
-        yield ('list', ())
-        for i, v in enumerate(d):
-            if isinstance(v, dict):
-                for descendant_path in cls.dict_insertion_path(v):
-                    action, path = descendant_path
-                    yield action, (i,) + path
-            elif isinstance(v, list):
-                for descendant_path in cls.list_insertion_path(v):
-                    action, path = descendant_path
-                    yield action, (i,) + path
-            else:
-                yield 'list-item', (i,)
-
-
-def weighted_random_choice(weights):
-    rand = random.random() * sum(weights.values())
-    total = 0
-    for key in sorted(weights):
-        total += weights[key]
-        if rand <= total:
-            return key
-    else:
-        raise Exception('Should never be reached')
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
