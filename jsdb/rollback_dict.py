@@ -169,6 +169,10 @@ class RollbackList(RollbackableMixin, collections.MutableSequence):
         self._new = None
 
 class TestRollback(unittest.TestCase):
+
+    def _commit(self, item):
+        item._commit()  # pylint: disable=protected-access
+
     def test_rollback_dict(self):
         under = dict(a=1)
         roll = RollbackDict(under)
@@ -179,7 +183,7 @@ class TestRollback(unittest.TestCase):
         self.assertEquals(under['a'], 1)
         self.assertEquals(roll['b'], 2)
         self.assertTrue('b' not in under)
-        roll._commit()
+        self._commit(roll)
         self.assertEquals(under, dict(a=4, b=2))
 
     def test_rollback_list(self):
@@ -190,7 +194,7 @@ class TestRollback(unittest.TestCase):
         self.assertEquals(list(lst), [1])
         self.assertEquals(len(lst), 1)
         self.assertEquals(lst[0], 1)
-        lst._commit()
+        self._commit(lst)
         self.assertEquals(under, [1])
         self.assertEquals(list(lst), [1])
 
@@ -203,7 +207,7 @@ class TestRollback(unittest.TestCase):
         self.assertEquals(roll['a']['b'], 2)
         proxy = roll['a']
 
-        roll._commit()
+        self._commit(roll)
 
         self.assertEquals(under['a']['b'], 2)
         self.assertEquals(roll['a']['b'], 2)
@@ -232,7 +236,7 @@ class TestRollback(unittest.TestCase):
         roll.insert(1, 1)
         self.assertFalse(under)
         self.assertTrue(list(roll) == [1])
-        roll._commit()
+        self._commit(roll)
         self.assertTrue(list(under) == [1])
 
     def test_subcommit(self):
@@ -240,26 +244,23 @@ class TestRollback(unittest.TestCase):
         d = RollbackDict(under)
 
         d['a'] = {}
-        d._commit()
+        self._commit(d)
         d['a']['b'] = 'dirty'
-        d._commit()
+        self._commit(d)
         self.assertEquals(under['a']['b'], 'dirty')
 
     def test_subcommit_list(self):
         under = dict()
         d = RollbackDict(under)
         d['a'] = []
-        d._commit()
+        self._commit(d)
         d['a'].insert(0, [])
-        d._commit()
+        self._commit(d)
         d['a'][0].insert(0, [])
-        d._commit()
+        self._commit(d)
         d['a'][0][0].insert(0, 17)
-        d._commit()
+        self._commit(d)
         self.assertEquals(under['a'][0][0][0], 17)
-
-
-
 
 if __name__ == '__main__':
     unittest.main()
