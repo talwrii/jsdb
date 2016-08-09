@@ -81,7 +81,7 @@ class JsonEncodeDict(collections.MutableMapping):
         return json.loads(string)
 
     def _encode(self, value):
-        if not isinstance(value, (int, float, str, bool)):
+        if not isinstance(value, (int, float, str, bool, types.NoneType, unicode)):
             raise ValueError(value)
         return json.dumps(value)
 
