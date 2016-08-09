@@ -160,6 +160,9 @@ class JsonFlatteningList(collections.MutableSequence):
         self._flat_store = FlatteningStore(self._underlying)
         self._path = FlatPath(prefix)
 
+    def __repr__(self):
+        return '<JsonFlatteningList path={!r}>'.format(self._prefix)
+
     def __getitem__(self, index):
         index = self._simplify_index(index)
         return self._getitem(index)
