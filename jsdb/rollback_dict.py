@@ -1,7 +1,6 @@
 import collections
 import unittest
 
-from . import python_copy
 from .data import JSON_TYPES
 
 class _Deleted(object):
@@ -10,7 +9,7 @@ class _Deleted(object):
 
 DELETED = _Deleted()
 
-class RollbackableMixin(object):
+class _RollbackMixin(object):
     def _rollback_wrap(self, value):
         "Make the value rollbackable"
 
@@ -29,7 +28,7 @@ class RollbackableMixin(object):
         else:
             return value
 
-class RollbackDict(RollbackableMixin, collections.MutableMapping):
+class RollbackDict(_RollbackMixin, collections.MutableMapping):
     "A proxy for changing an underlying data structure that commit and rollback"
     def __init__(self, underlying, parent=None):
         self._underlying = underlying
@@ -50,7 +49,7 @@ class RollbackDict(RollbackableMixin, collections.MutableMapping):
         else:
             stored = self._underlying[key]
             wrapped = self._rollback_wrap(stored)
-            if isinstance(wrapped, RollbackableMixin):
+            if isinstance(wrapped, _RollbackMixin):
                 self._updates[key] = wrapped
 
             return wrapped
@@ -96,17 +95,14 @@ class RollbackDict(RollbackableMixin, collections.MutableMapping):
             if v == DELETED:
                 del self._underlying[k]
             else:
-                if isinstance(v, RollbackableMixin):
+                if isinstance(v, _RollbackMixin):
                     v._commit() # pylint: disable=protected-access
                     self._underlying[k] = v._underlying # pylint: disable=protected-access
                 else:
                     self._underlying[k] = v
         self._updates.clear()
 
-    def python_copy(self):
-        return python_copy.dict_copy(self)
-
-class RollbackList(RollbackableMixin, collections.MutableSequence):
+class RollbackList(_RollbackMixin, collections.MutableSequence):
     """A proxy for changing an underlying data structure that supports commit and rollback
 
     This works by creating a complete clone of the underlying list. Simplifying slicing etc
@@ -174,10 +170,10 @@ class RollbackList(RollbackableMixin, collections.MutableSequence):
         if self._is_updated():
             new_values = []
             for x in self._new:
-                if isinstance(x, RollbackableMixin):
+                if isinstance(x, _RollbackMixin):
                     # Ensure that children are commit before us
-                    x._commit()
-                    new_values.append(x._underlying)
+                    x._commit() # pylint: disable=protected-access
+                    new_values.append(x._underlying)  # pylint: disable=protected-access
                 else:
                     new_values.append(x)
 
