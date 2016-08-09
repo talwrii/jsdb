@@ -89,15 +89,15 @@ class RollbackDict(RollbackableMixin, collections.MutableMapping):
 
     def _commit(self):
         for desc in self._changed_descendents:
-            desc._commit()
+            desc._commit() # pylint: disable=protected-access
 
         for k, v in self._updates.items():
             if v == DELETED:
                 del self._underlying[k]
             else:
                 if isinstance(v, RollbackableMixin):
-                    v._commit()
-                    self._underlying[k] = v._underlying
+                    v._commit() # pylint: disable=protected-access
+                    self._underlying[k] = v._underlying # pylint: disable=protected-access
                 else:
                     self._underlying[k] = v
         self._updates.clear()
@@ -136,7 +136,7 @@ class RollbackList(RollbackableMixin, collections.MutableSequence):
 
     def _ensure_copied(self):
         if self._parent:
-            self._parent._record_changed(self)
+            self._parent._record_changed(self) # pylint: disable=protected-access
         if not self._is_updated():
             self._new = list(self._underlying)
 
@@ -161,7 +161,7 @@ class RollbackList(RollbackableMixin, collections.MutableSequence):
 
     def _record_changed(self, item):
         if self._parent:
-            self._parent._record_changed(item)
+            self._parent._record_changed(item) # pylint: disable=protected-access
 
     def _commit(self):
         if self._is_updated():
