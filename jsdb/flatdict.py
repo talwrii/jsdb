@@ -191,7 +191,17 @@ class JsonFlatteningList(collections.MutableSequence):
             raise IndexError(index)
 
     def __setitem__(self, index, value):
-        self._set_item(index, value)
+        if isinstance(index, slice):
+            if index.start == index.stop == index.step == None:
+                # Support complete reassignment because
+                self._flat_store.purge_prefix(self._path.list().key())
+                self._underlying[self._path.list().key()] = True
+                for item in value:
+                    self.append(item)
+            else:
+                raise NotImplementedError()
+        else:
+            self._set_item(index, value)
 
     def _set_item(self, index, value, check_index=True):
         if check_index:
