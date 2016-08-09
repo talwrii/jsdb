@@ -11,14 +11,6 @@ class _Deleted(object):
 DELETED = _Deleted()
 
 class RollbackableMixin(object):
-    def __getitem__(self, key):
-        stored = self._get_item(key)
-
-        if stored == DELETED:
-            raise KeyError(key)
-
-        return self._rollback_wrap(stored)
-
     def _rollback_wrap(self, value):
         "Make the value rollbackable"
 
@@ -48,11 +40,20 @@ class RollbackDict(RollbackableMixin, collections.MutableMapping):
     def _items(self):
         return self.items()
 
-    def _get_item(self, key):
+    def __getitem__(self, key):
         if key in self._updates:
-            return self._updates[key]
+            updated =  self._updates[key]
+            if updated == DELETED:
+                raise KeyError(key)
+            else:
+                return updated
         else:
-            return self._underlying[key]
+            stored = self._underlying[key]
+            wrapped = self._rollback_wrap(stored)
+            if isinstance(wrapped, RollbackableMixin):
+                self._updates[key] = wrapped
+
+            return wrapped
 
     def __setitem__(self, key, value):
         if self._parent:
@@ -130,9 +131,15 @@ class RollbackList(RollbackableMixin, collections.MutableSequence):
         self._ensure_copied()
         self._new[key] = value
 
-    def _get_item(self, key):
+    def __getitem__(self, key):
         self._ensure_copied()
-        return self._new[key]
+        value = self._new[key]
+        wrapped = self._rollback_wrap(value)
+        if value == wrapped:
+            return value
+        else:
+            self._new[key] = wrapped
+            return wrapped
 
     def _ensure_copied(self):
         if self._parent:
@@ -165,7 +172,16 @@ class RollbackList(RollbackableMixin, collections.MutableSequence):
 
     def _commit(self):
         if self._is_updated():
-            self._underlying[:] = self._new
+            new_values = []
+            for x in self._new:
+                if isinstance(x, RollbackableMixin):
+                    # Ensure that children are commit before us
+                    x._commit()
+                    new_values.append(x._underlying)
+                else:
+                    new_values.append(x)
+
+            self._underlying[:] = new_values
         self._new = None
 
 class TestRollback(unittest.TestCase):
