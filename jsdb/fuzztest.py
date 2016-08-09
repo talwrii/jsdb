@@ -1,13 +1,12 @@
+import copy
 import logging
 import os
 import random
 import tempfile
 import unittest
 
-
 from . import flatdict, python_copy, rollback_dict
 from .jsdb import Jsdb
-
 
 LOGGER = logging.getLogger('jsdb.fuzztest')
 
@@ -31,17 +30,26 @@ class JsdbFuzzTest(unittest.TestCase):
 
     def test_rollback_dict(self):
         make_dict = lambda: rollback_dict.RollbackDict(dict())
-        self.assert_fuzz(make_dict, commit=True)
+        # unique values because a rollback dict is *meant* to
+        #    not copy values
+        self.assert_fuzz(make_dict, commit=True, unique_values=True)
 
-
-    def assert_fuzz(self, make_dict, commit=False):
+    def assert_fuzz(self, make_dict, commit=False, unique_values=False):
         for _ in xrange(20):
-            self.run_fuzzer(make_dict, 100, commit=commit)
+            self.run_fuzzer(make_dict, 100, commit=commit, unique_values=unique_values)
 
-    def run_fuzzer(self, make_dict, iterations, commit):
+    def run_fuzzer(self, make_dict, iterations, commit, unique_values=False):
+        # uniq_values: created distinct values for the reference
+        #    dictionary and our dictionary
+
         # to have confidence that this actually works
         #   we will perform random insertions and deletions
         #   and check that the structure matches a normal json options
+
+        if not unique_values:
+            value_func = lambda x: x
+        else:
+            value_func = copy.deepcopy
 
         json_dict = dict()
         db = make_dict()
@@ -61,8 +69,8 @@ class JsdbFuzzTest(unittest.TestCase):
                     value = self.random_value()
                     LOGGER.debug('Inserting %r -> %r', key, value)
                     equivalent_code.append('d{}[{!r}] = {!r}'.format(self.code_path(path), key, value))
-                    self.lookup_path(db, path)[key] = value
-                    self.lookup_path(json_dict, path)[key] = value
+                    self.lookup_path(db, path)[key] = value_func(value)
+                    self.lookup_path(json_dict, path)[key] = value_func(value)
                 elif action == 'list-insert':
                     value = self.random_value()
                     json_lst = self.lookup_path(json_dict, path)
@@ -71,8 +79,8 @@ class JsdbFuzzTest(unittest.TestCase):
                     LOGGER.debug('Inserting %r at %r', value, point)
                     equivalent_code.append('d{}.insert({!r}, {!r})'.format(self.code_path(path), point, value))
                     # pylint mis-detection
-                    json_lst.insert(point, value) # pylint: disable=no-member
-                    db_list.insert(point, value)
+                    json_lst.insert(point, value_func(value)) # pylint: disable=no-member
+                    db_list.insert(point, value_func(value))
                 elif action == 'list-pop':
                     value = self.random_value()
 
@@ -97,16 +105,16 @@ class JsdbFuzzTest(unittest.TestCase):
                     LOGGER.debug('Modifying %r -> %r', path, value)
                     equivalent_code.append('d{} = {!r}'.format(self.code_path(path), value))
 
-                    self.set_path(db, path, value)
-                    self.set_path(json_dict, path, value)
+                    self.set_path(db, path, value_func(value))
+                    self.set_path(json_dict, path, value_func(value))
                 elif action == 'list-modify':
                     value = self.random_value()
 
                     LOGGER.debug('Modifying %r -> %r', path, value)
                     equivalent_code.append('d{} = {!r}'.format(self.code_path(path), value))
 
-                    self.set_path(db, path, value)
-                    self.set_path(json_dict, path, value)
+                    self.set_path(db, path, value_func(value))
+                    self.set_path(json_dict, path, value_func(value))
 
                 elif action == 'dict-delete':
                     equivalent_code.append('del d{}'.format(self.code_path(path)))
