@@ -123,8 +123,19 @@ class JsonFlatteningDict(collections.MutableMapping):
 
     def __setitem__(self, key, value):
         #LOGGER.debug('%r: Setting %r -> %r', self, key, value)
+
         if not isinstance(key, str):
             raise ValueError(key)
+
+        # Special case: no-op self assignment. e.g. d["a"] = d["a"]
+        if isinstance(value, (JsonFlatteningDict, JsonFlatteningList)):
+            if self._path.dict().lookup(key).key() == value._path.key():
+                return
+
+        # Deepcopy first to allow assignment from within
+        #    ourselves. e.g. d["a"] = d["a"]["child"]
+        if isinstance(value, (collections.Sequence, collections.Mapping)):
+            value = python_copy.copy(value)
 
         self.pop(key, None)
         if isinstance(value, (int, str, float, types.NoneType, bool)):
@@ -191,9 +202,19 @@ class JsonFlatteningList(collections.MutableSequence):
             raise IndexError(index)
 
     def __setitem__(self, index, value):
+        # special case no-op self: assignment
+        #   a[1] = a[1]
+        if isinstance(value, (JsonFlatteningDict, JsonFlatteningList)):
+            if self._path.list().index(index).key() == value._path.key():
+                return
+
+        if isinstance(value, (collections.Sequence, collections.Mapping)):
+            value = python_copy.copy(value)
+
         if isinstance(index, slice):
             if index.start == index.stop == index.step == None:
                 # Support complete reassignment because
+
                 self._flat_store.purge_prefix(self._path.list().key())
                 self._underlying[self._path.list().key()] = True
                 for item in value:
@@ -208,17 +229,22 @@ class JsonFlatteningList(collections.MutableSequence):
             if not 0 <= index < len(self):
                 raise IndexError('assignment out of range')
 
+        # Deepcopy first to allow assignment from within
+        #    ourselves. e.g. d["a"] = d["a"]["child"]
+        if isinstance(value, (collections.Sequence, collections.Mapping)):
+            value = python_copy.copy(value)
+
         self._flat_store.purge_prefix(self._path.list().index(index).key())
 
-        if isinstance(value, (int, str, float, types.NoneType, bool)):
+        if isinstance(value, (int, str, float, types.NoneType, bool, unicode)):
             self._underlying[self._path.list().index(index).value().key()] = value
-        elif isinstance(value, (dict, JsonFlatteningDict)):
+        elif isinstance(value, dict):
             dict_key = self._path.list().index(index)
             self._underlying[dict_key.dict().key()] = True
             nested_dict = self[index]
             for key, nested_value in list(value.items()):
                 nested_dict[key] = nested_value
-        elif isinstance(value, (list, JsonFlatteningList)):
+        elif isinstance(value, list):
             list_key = self._path.list().index(index)
             self._underlying[list_key.list().key()] = True
             nested_list = self[index]
@@ -249,6 +275,7 @@ class JsonFlatteningList(collections.MutableSequence):
         # Copy upwards to avoid temporary values
         for i in range(length, pos, -1):
             self._set_item(i, self[i - 1], check_index=False)
+
         self._set_item(pos, inserted_value, check_index=False)
 
 class FlatteningStore(object):
