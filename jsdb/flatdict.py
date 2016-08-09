@@ -532,7 +532,39 @@ class TestFlatDict(unittest.TestCase):
         d['b'][0]['c'] = {}
         d['b'].insert(0, 'test')
 
+    def test_flattening_mapping_basic(self):
+        store = dict()
+        d = JsonFlatteningDict(store)
 
+        self.assertFalse("test" in d)
+        d["test"] = 1
+        self.assertEquals(d["test"], 1)
+
+    def test_flattening_mapping_with_sorting(self):
+        store = FakeOrderedDict()
+        d = JsonFlatteningDict(store)
+
+        d["one"] = 1
+        d["nested"] = dict(depth=2)
+        d["two"] = 2
+
+        self.assertEquals(set(iter(d)), set(["one", "nested", "two"]))
+        self.assertTrue(store.key_after_called)
+
+    def test_flattening_mapping_iter(self):
+        store = dict()
+        d = JsonFlatteningDict(store)
+        d["one"] = 1
+        d["nested"] = dict(depth=2)
+        d["two"] = 2
+        self.assertEquals(set(iter(d)), set(["one", "nested", "two"]))
+
+    def test_slice_assign(self):
+        d = JsonFlatteningDict(FakeOrderedDict())
+        d["a"] = ["one", "two"]
+        reference = d["a"]
+        d["a"][:] = [1, 2, 3]
+        self.assertEquals(reference[1], 2)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
