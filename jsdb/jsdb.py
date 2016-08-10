@@ -166,8 +166,6 @@ class TestJsdb(unittest.TestCase):
         d['a'][0].insert(0, 17)
         d.commit()
         self.assertEquals(d['a'][0][0], 17)
-5
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
     unittest.main()
