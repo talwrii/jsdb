@@ -131,7 +131,7 @@ class TestJsdb(unittest.TestCase):
         db.commit()
         python_copy.copy(db)
 
-    def test_fuzz1(self):
+    def test_insert(self):
         d = Jsdb(self._filename)
         d['a'] = []
         d.commit()
@@ -139,6 +139,27 @@ class TestJsdb(unittest.TestCase):
         d.commit()
         self.assertEquals(d['a'][0], 17)
 
+    def test_strings(self):
+        d = Jsdb(self._filename)
+        d[''] = []
+        d.commit()
+        d[''].insert(0, False)
+        d.commit()
+        d[''][0] = 'cic'
+        d.commit()
+        d[''].insert(0, [])
+        d.commit()
+
+    def test_fuzz1(self):
+        d = Jsdb(self._filename)
+        d['a'] = []
+        d.commit()
+        d['a'].insert(0, [])
+        d.commit()
+        d['a'][0].insert(0, 17)
+        d.commit()
+        self.assertEquals(d['a'][0][0], 17)
+5
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
