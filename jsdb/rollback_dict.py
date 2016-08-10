@@ -116,6 +116,7 @@ class RollbackList(_RollbackMixin, collections.MutableSequence):
 
     def insert(self, index, obj):
         self._ensure_copied()
+        self._record_changed(self)
         self._new.insert(index, obj)
 
     def _new_items(self):
@@ -126,6 +127,7 @@ class RollbackList(_RollbackMixin, collections.MutableSequence):
 
     def __setitem__(self, key, value):
         self._ensure_copied()
+        self._record_changed(self)
         self._new[key] = value
 
     def __getitem__(self, key):
@@ -139,13 +141,12 @@ class RollbackList(_RollbackMixin, collections.MutableSequence):
             return wrapped
 
     def _ensure_copied(self):
-        if self._parent:
-            self._parent._record_changed(self) # pylint: disable=protected-access
         if not self._is_updated():
             self._new = list(self._underlying)
 
     def __delitem__(self, key):
         self._ensure_copied()
+        self._record_changed(self)
         del self._new[key]
 
     def __iter__(self):
