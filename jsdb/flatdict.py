@@ -4,13 +4,12 @@
 import collections
 import itertools
 import logging
-import types
 import unittest
 
 from . import python_copy
 from .flatpath import FlatPath
 from . import flatpath
-from .data import JSON_TYPES
+from .data import JSON_VALUE_TYPES
 
 LOGGER = logging.getLogger('jsdb.flatdict')
 
@@ -138,7 +137,7 @@ class JsonFlatteningDict(collections.MutableMapping):
             value = python_copy.copy(value)
 
         self.pop(key, None)
-        if isinstance(value, (int, str, float, types.NoneType, bool)):
+        if isinstance(value, JSON_VALUE_TYPES):
             flat_key = self._path.dict().lookup(key).value().key()
             self._underlying[flat_key] = value
         elif isinstance(value, (dict, collections.MutableMapping)):
@@ -236,7 +235,7 @@ class JsonFlatteningList(collections.MutableSequence):
 
         self._flat_store.purge_prefix(self._path.list().index(index).key())
 
-        if isinstance(value, (int, str, float, types.NoneType, bool, unicode)):
+        if isinstance(value, JSON_VALUE_TYPES):
             self._underlying[self._path.list().index(index).value().key()] = value
         elif isinstance(value, dict):
             dict_key = self._path.list().index(index)
