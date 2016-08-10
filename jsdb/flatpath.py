@@ -117,6 +117,7 @@ class FlatPath(object):
     def __init__(self, prefix):
         self._prefix = prefix
         self._path_type = None
+        self._key_string = None
 
     def __repr__(self):
         return '<FlatPath prefix={}>'.format(self._prefix)
@@ -178,6 +179,12 @@ class FlatPath(object):
         return FlatPath(self._prefix + '[')
 
     def key_string(self):
+        if self._key_string is None:
+            self._key_string = self._get_key_string()
+
+        return self._key_string
+
+    def _get_key_string(self):
         self.ensure_type(DictPrefixPath)
         _, string  = self._remove_terminal_string(self.prefix().key())
         return string

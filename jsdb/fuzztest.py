@@ -85,7 +85,6 @@ class JsdbFuzzTest(unittest.TestCase):
         equivalent_code = [] # Make it easy to mess with code
 
         def log_operation(operation):
-            print 'Instruction', operation
             equivalent_code.append(operation)
 
         start = time.time()
@@ -169,7 +168,8 @@ class JsdbFuzzTest(unittest.TestCase):
                     db.commit()
 
                 # LOGGER.debug('%s', pprint.pformat(json_dict))
-                self.assertEquals(python_copy.copy(db), json_dict)
+                if check_comparison:
+                    self.assertEquals(python_copy.copy(db), json_dict)
         except:
             print '\n'.join(equivalent_code)
             print len(equivalent_code), 'Instructions'
