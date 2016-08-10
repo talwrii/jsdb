@@ -1,12 +1,13 @@
+import bsddb
 import copy
 import logging
 import os
 import random
 import tempfile
+import time
 import unittest
 
-from . import flatdict, python_copy, rollback_dict
-from .jsdb import Jsdb
+from . import flatdict, jsdb, python_copy, rollback_dict
 
 LOGGER = logging.getLogger('jsdb.fuzztest')
 
@@ -25,11 +26,16 @@ class JsdbFuzzTest(unittest.TestCase):
         self.assert_fuzz(make_dict)
 
     def test_jsdb(self):
-        make_dict = lambda: Jsdb(self._filename)
+        make_dict = lambda: jsdb.Jsdb(self._filename)
         def clean_up():
             os.unlink(self._filename)
-
         self.assert_fuzz(make_dict, commit=True, clean_up=clean_up)
+
+    def test_flattening_bsddb(self):
+        make_dict = lambda: flatdict.JsonFlatteningDict(jsdb.JsonEncodeDict(bsddb.btopen(self._filename, 'w')))
+        def clean_up():
+            os.unlink(self._filename)
+        self.assert_fuzz(make_dict, commit=False, clean_up=clean_up)
 
     def test_rollback_dict(self):
         make_dict = lambda: rollback_dict.RollbackDict(dict())
@@ -41,12 +47,26 @@ class JsdbFuzzTest(unittest.TestCase):
         make_dict = lambda: rollback_dict.RollbackDict(dict())
         self.assert_fuzz(make_dict, commit=False, unique_values=True)
 
-    def assert_fuzz(self, make_dict, commit=False, unique_values=False, clean_up=None):
-        random.seed(0)
-        for _ in xrange(1):
-            self.run_fuzzer(make_dict, 100, commit=commit, unique_values=unique_values, clean_up=clean_up)
+    # def test_jsdb_performance(self):
+    #     # This ends up being N**2, I think this due to deepcopy-ing
+    #     #   hopeful this doesn't turn up if we consistently insert
+    #     #   at the leaves (which is what we should see in normal
+    #     #   operation)
+    #     "Make sure that we can deal with big objects efficiently"
+    #     # Switch off comparison after each comparison (since this starts with
+    #     #   take up most of the time for big graphs)
+    #     make_dict = lambda: jsdb.Jsdb(self._filename)
+    #     def clean_up():
+    #         os.unlink(self._filename)
+    #     self.assert_fuzz(make_dict, commit=True, clean_up=clean_up, loops=1, operations=1000, check_comparison=False, log_every=100)
 
-    def run_fuzzer(self, make_dict, iterations, commit, unique_values=False, clean_up=None):
+    def assert_fuzz(self, make_dict, commit=False, unique_values=False, clean_up=None, check_comparison=True, loops=20, operations=50, log_every=None):
+        random.seed(0)
+        for _ in xrange(loops):
+            self.run_fuzzer(make_dict, operations, commit=commit, unique_values=unique_values, clean_up=clean_up,
+                                check_comparison=check_comparison, log_every=log_every)
+
+    def run_fuzzer(self, make_dict, iterations, commit, unique_values=False, clean_up=None, check_comparison=True, log_every=False):
         # uniq_values: created distinct values for the reference
         #    dictionary and our dictionary
 
@@ -64,8 +84,18 @@ class JsdbFuzzTest(unittest.TestCase):
 
         equivalent_code = [] # Make it easy to mess with code
 
+        def log_operation(operation):
+            print 'Instruction', operation
+            equivalent_code.append(operation)
+
+        start = time.time()
+
         try:
-            for _ in xrange(iterations):
+            for iteration in xrange(iterations):
+
+                if iteration % log_every == 0:
+                    print iteration, time.time() - start
+
                 paths = list(self.dict_insertion_path(json_dict))
                 path = random.choice(paths)
                 action = self.random_path_action(path)
@@ -76,7 +106,7 @@ class JsdbFuzzTest(unittest.TestCase):
                     key = self.random_key()
                     value = self.random_value()
                     LOGGER.debug('Inserting %r -> %r', key, value)
-                    equivalent_code.append('d{}[{!r}] = {!r}'.format(self.code_path(path), key, value))
+                    log_operation('d{}[{!r}] = {!r}'.format(self.code_path(path), key, value))
                     self.lookup_path(db, path)[key] = value_func(value)
                     self.lookup_path(json_dict, path)[key] = value_func(value)
                 elif action == 'list-insert':
@@ -85,14 +115,14 @@ class JsdbFuzzTest(unittest.TestCase):
                     db_list = self.lookup_path(db, path)
                     point = random.randint(0, len(json_lst))
                     LOGGER.debug('Inserting %r at %r', value, point)
-                    equivalent_code.append('d{}.insert({!r}, {!r})'.format(self.code_path(path), point, value))
+                    log_operation('d{}.insert({!r}, {!r})'.format(self.code_path(path), point, value))
                     # pylint mis-detection
                     json_lst.insert(point, value_func(value)) # pylint: disable=no-member
                     db_list.insert(point, value_func(value))
                 elif action == 'list-pop':
                     value = self.random_value()
 
-                    equivalent_code.append('d{}.pop()'.format(self.code_path(path)))
+                    log_operation('d{}.pop()'.format(self.code_path(path)))
 
                     lst = self.lookup_path(json_dict, path)
                     db_list = self.lookup_path(db, path)
@@ -111,7 +141,7 @@ class JsdbFuzzTest(unittest.TestCase):
                     value = self.random_value()
 
                     LOGGER.debug('Modifying %r -> %r', path, value)
-                    equivalent_code.append('d{} = {!r}'.format(self.code_path(path), value))
+                    log_operation('d{} = {!r}'.format(self.code_path(path), value))
 
                     self.set_path(db, path, value_func(value))
                     self.set_path(json_dict, path, value_func(value))
@@ -119,17 +149,17 @@ class JsdbFuzzTest(unittest.TestCase):
                     value = self.random_value()
 
                     LOGGER.debug('Modifying %r -> %r', path, value)
-                    equivalent_code.append('d{} = {!r}'.format(self.code_path(path), value))
+                    log_operation('d{} = {!r}'.format(self.code_path(path), value))
 
                     self.set_path(db, path, value_func(value))
                     self.set_path(json_dict, path, value_func(value))
 
                 elif action == 'dict-delete':
-                    equivalent_code.append('del d{}'.format(self.code_path(path)))
+                    log_operation('del d{}'.format(self.code_path(path)))
                     self.set_path(json_dict, path, None, delete=True)
                     self.set_path(db, path, None, delete=True)
                 elif action == 'list-del':
-                    equivalent_code.append('del d{}'.format(self.code_path(path)))
+                    log_operation('del d{}'.format(self.code_path(path)))
                     self.set_path(db, path, None, delete=True)
                     self.set_path(json_dict, path, None, delete=True)
                 else:

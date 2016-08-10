@@ -2,7 +2,6 @@
 """
 
 import collections
-import itertools
 import logging
 import unittest
 
@@ -10,6 +9,7 @@ from . import python_copy
 from .flatpath import FlatPath
 from . import flatpath
 from .data import JSON_VALUE_TYPES
+from . import treeutils
 
 LOGGER = logging.getLogger('jsdb.flatdict')
 
@@ -66,7 +66,7 @@ class JsonFlatteningDict(collections.MutableMapping):
         self._underlying[self._path.length().key()] = value
 
     def __iter__(self):
-        key_after = key_after_func(self._underlying)
+        key_after = treeutils.key_after_func(self._underlying)
         if key_after:
             return self._key_after_iter(key_after)
         else:
@@ -104,7 +104,8 @@ class JsonFlatteningDict(collections.MutableMapping):
         #   because "a"."b". and "a"."b"[ precede
         #   their descendants
         try:
-            child_path = FlatPath(key_after(self._underlying, self._path.dict().key()))
+            found_key = key_after(self._path.dict().key())
+            child_path = FlatPath(found_key)
         except KeyError:
             return
 
@@ -118,7 +119,7 @@ class JsonFlatteningDict(collections.MutableMapping):
             #   so we want to look for "a"."b".TOP "a"."b"[TOP or "a"."b"=
             try:
                 #  this is a child because the type string always precedes it's children
-                child_key = key_after(self._underlying, child_path.key() + ASCII_TOP)
+                child_key = key_after(child_path.key() + ASCII_TOP)
                 child_path = FlatPath(child_key)
             except KeyError:
                 break
@@ -173,12 +174,6 @@ class JsonFlatteningDict(collections.MutableMapping):
                 list_store.append(item)
         else:
             raise ValueError(value)
-
-def key_after_func(store):
-    if isinstance(store, FakeOrderedDict):
-        return FakeOrderedDict.key_after
-    else:
-        return None
 
 class JsonFlatteningList(collections.MutableSequence):
     def __init__(self, underlying, prefix):
@@ -350,7 +345,7 @@ class FlatteningStore(object):
     def purge_prefix(self, prefix):
         "Remove everythign in the store that starts with this prefix"
         try:
-            key_after = key_after_func(self._underlying)
+            key_after = treeutils.key_after_func(self._underlying)
         except KeyError:
             return
 
@@ -365,7 +360,7 @@ class FlatteningStore(object):
 
         while True:
             try:
-                key = key_after(self._underlying, prefix)
+                key = key_after(prefix)
             except KeyError:
                 break
             if not key.startswith(prefix):
@@ -383,7 +378,6 @@ class FakeOrderedDict(dict):
     "An inefficiently 'ordered' dict for testing (allows us to avoid use bsddb"
     def __init__(self):
         self.key_after_called = False
-
 
     def key_after(self, target_key):
         keys = sorted(self)

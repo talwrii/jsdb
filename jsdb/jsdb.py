@@ -13,6 +13,7 @@ import types
 from . import python_copy
 from .rollback_dict import RollbackDict
 from . import flatdict
+from . import treeutils
 
 LOGGER = logging.getLogger('jsdb')
 
@@ -75,7 +76,8 @@ class JsonEncodeDict(collections.MutableMapping):
         return self._decode(self._underlying[key])
 
     def __setitem__(self, key, value):
-        self._underlying[key] = self._encode(value)
+        encoded_value = self._encode(value)
+        self._underlying[key] = encoded_value
 
     def _decode(self, string):
         return json.loads(string)
@@ -93,6 +95,11 @@ class JsonEncodeDict(collections.MutableMapping):
 
     def __iter__(self):
         return iter(self._underlying)
+
+    def key_after_func(self):
+        func = treeutils.key_after_func(self._underlying)
+        return func
+
 
 class TestJsdb(unittest.TestCase):
     def setUp(self):
