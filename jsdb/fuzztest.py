@@ -26,19 +26,26 @@ class JsdbFuzzTest(unittest.TestCase):
 
     def test_jsdb(self):
         make_dict = lambda: Jsdb(self._filename)
-        self.assert_fuzz(make_dict, commit=True)
+        def clean_up():
+            os.unlink(self._filename)
+
+        self.assert_fuzz(make_dict, commit=True, clean_up=clean_up)
 
     def test_rollback_dict(self):
         make_dict = lambda: rollback_dict.RollbackDict(dict())
-        # unique values because a rollback dict is *meant* to
-        #    not copy values
+        # unique values because a rollback dict is *meant* to not
+        #   clone nested structures
         self.assert_fuzz(make_dict, commit=True, unique_values=True)
 
-    def assert_fuzz(self, make_dict, commit=False, unique_values=False):
-        for _ in xrange(20):
-            self.run_fuzzer(make_dict, 100, commit=commit, unique_values=unique_values)
+    def test_rollback_dict_no_commit(self):
+        make_dict = lambda: rollback_dict.RollbackDict(dict())
+        self.assert_fuzz(make_dict, commit=False, unique_values=True)
 
-    def run_fuzzer(self, make_dict, iterations, commit, unique_values=False):
+    def assert_fuzz(self, make_dict, commit=False, unique_values=False, clean_up=None):
+        for _ in xrange(1):
+            self.run_fuzzer(make_dict, 100, commit=commit, unique_values=unique_values, clean_up=clean_up)
+
+    def run_fuzzer(self, make_dict, iterations, commit, unique_values=False, clean_up=None):
         # uniq_values: created distinct values for the reference
         #    dictionary and our dictionary
 
@@ -128,7 +135,6 @@ class JsdbFuzzTest(unittest.TestCase):
                     raise ValueError(action)
 
                 if commit:
-                    print 'commit'
                     db.commit()
 
                 # LOGGER.debug('%s', pprint.pformat(json_dict))
@@ -137,6 +143,9 @@ class JsdbFuzzTest(unittest.TestCase):
             print '\n'.join(equivalent_code)
             print len(equivalent_code), 'Instructions'
             raise
+
+        if clean_up:
+            clean_up()
 
 
     def code_path(self, path):
