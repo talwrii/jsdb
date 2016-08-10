@@ -90,6 +90,7 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
     def _commit(self):
         for desc in self._changed_descendents:
             desc._commit() # pylint: disable=protected-access
+        del self._changed_descendents[:]
 
         for k, v in self._updates.items():
             if v == DELETED:
@@ -181,7 +182,6 @@ class RollbackList(_RollbackMixin, collections.MutableSequence):
         self._new = None
 
 class TestRollback(unittest.TestCase):
-
     def _commit(self, item):
         item._commit()  # pylint: disable=protected-access
 
