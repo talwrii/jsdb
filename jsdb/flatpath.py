@@ -28,7 +28,6 @@ class FlatPathType(object):
     ."hello"[  :: type path <- indicates the type of an entry
     ."hello"=  :: value path
     """
-    pass
 
 
 class PrefixPath(FlatPathType):
@@ -108,6 +107,8 @@ class PathCorrupt(Exception):
     def __str__(self):
         print 'Path is corrupt {!r}'.format(self.path)
 
+DICT_PATH, LIST_PATH, VALUE_PATH, LENGTH_PATH, LIST_PREFIX_PATH, DICT_PREFIX_PATH = (
+    DictPath(), ListPath(), ValuePath(), LengthPath(), ListPrefixPath(), DictPrefixPath())
 
 class FlatPath(object):
     # Nope: I'm not fully parsing this
@@ -115,6 +116,7 @@ class FlatPath(object):
     #   and potentially making code a lot easier to understand
     def __init__(self, prefix):
         self._prefix = prefix
+        self._path_type = None
 
     def __repr__(self):
         return '<FlatPath prefix={}>'.format(self._prefix)
@@ -126,18 +128,26 @@ class FlatPath(object):
         return self._prefix + "["
 
     def path_type(self):
-        if self._prefix.endswith('.'):
-            return DictPath()
-        elif self._prefix.endswith('['):
-            return ListPath()
-        elif self._prefix.endswith('='):
-            return ValuePath()
-        elif self._prefix.endswith('#'):
-            return LengthPath()
-        elif self._prefix.endswith(']'):
-            return ListPrefixPath()
-        elif self._prefix.endswith('"') or self._prefix == '':
-            return DictPrefixPath()
+        if self._path_type is None:
+            self._path_type = self._get_path_type()
+
+        return self._path_type
+
+    def _get_path_type(self):
+        if self._prefix == '':
+            return DICT_PREFIX_PATH
+        elif self._prefix[-1] == '.':
+            return DICT_PATH
+        elif self._prefix[-1] == '[':
+            return LIST_PATH
+        elif self._prefix[-1] == '=':
+            return VALUE_PATH
+        elif self._prefix[-1] == '#':
+            return LENGTH_PATH
+        elif self._prefix[-1] == ']':
+            return LIST_PREFIX_PATH
+        elif self._prefix[-1] == '"':
+            return DICT_PREFIX_PATH
         else:
             raise PathCorrupt(self._prefix)
 

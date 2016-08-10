@@ -174,7 +174,6 @@ class JsonFlatteningDict(collections.MutableMapping):
         else:
             raise ValueError(value)
 
-
 def key_after_func(store):
     if isinstance(store, FakeOrderedDict):
         return FakeOrderedDict.key_after
@@ -296,7 +295,7 @@ class JsonFlatteningList(collections.MutableSequence):
         # Copy upwards to avoid temporary values
 
         self._set_length(length + 1)
-        
+
         for i in range(length, pos, -1):
             self._set_item(i, self[i - 1], check_index=False)
 
