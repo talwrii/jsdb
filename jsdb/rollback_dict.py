@@ -66,7 +66,7 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
             self._changed_descendents.append(item)
 
     def __iter__(self):
-        for key, value in self._updates.items():
+        for key, value in self._updates.iteritems():
             if value != DELETED:
                 yield key
 
