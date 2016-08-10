@@ -79,6 +79,15 @@ class ValuePath(TypePath):
 
     """
 
+class LengthPath(TypePath):
+    """A path that tells us how long an iterable is
+
+    ."hello"."world"#
+
+    """
+
+
+
 class IncorrectType(Exception):
     def __init__(self, prefix, got_type, wanted_type):
         self.prefix = prefix
@@ -87,6 +96,9 @@ class IncorrectType(Exception):
 
     def __str__(self):
         return '{!r}: Wanted {} got {}'.format(self.prefix, self.wanted_type, self.got_type)
+
+class RootNode(Exception):
+    "Operation is not supported for the root node"
 
 class PathCorrupt(Exception):
     "This path looks broken"
@@ -120,6 +132,8 @@ class FlatPath(object):
             return ListPath()
         elif self._prefix.endswith('='):
             return ValuePath()
+        elif self._prefix.endswith('#'):
+            return LengthPath()
         elif self._prefix.endswith(']'):
             return ListPrefixPath()
         elif self._prefix.endswith('"') or self._prefix == '':
@@ -173,6 +187,8 @@ class FlatPath(object):
             prefix = self._remove(prefix, '[')
             return FlatPath(prefix)
         elif isinstance(self.path_type(), DictPrefixPath):
+            if self._prefix == '':
+                raise RootNode()
             prefix, _  = self._remove_terminal_string(self._prefix)
             prefix = self._remove(prefix, '.')
             return FlatPath(prefix)
@@ -231,6 +247,10 @@ class FlatPath(object):
         self.ensure_type(DictPath)
         return FlatPath(self._prefix + '"{}"'.format(escape_double_quote(key)))
 
+    def length(self):
+        self.ensure_type(PrefixPath)
+        return FlatPath(self._prefix + '#')
+
     def index(self, index):
         self.ensure_type(ListPath)
 
@@ -268,9 +288,17 @@ class FlatPathTest(unittest.TestCase):
         with self.assertRaises(IncorrectType):
             FlatPath('."hello"=').value()
 
+        with self.assertRaises(RootNode):
+            FlatPath('').parent()
+
+        with self.assertRaises(RootNode):
+            FlatPath('#').prefix().parent()
+
         self.assertEquals(FlatPath('."hello"').value(), FlatPath('."hello"='))
         self.assertEquals(FlatPath('."hello"').dict(), FlatPath('."hello".'))
         self.assertEquals(FlatPath('."hello"').prefix(), FlatPath('."hello"'))
+        self.assertEquals(FlatPath('."hello"#').prefix(), FlatPath('."hello"'))
+        self.assertEquals(FlatPath('."hello"=').prefix(), FlatPath('."hello"'))
         self.assertEquals(FlatPath('."hello".').prefix(), FlatPath('."hello"'))
 
     def test_depth(self):

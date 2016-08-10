@@ -19,7 +19,7 @@ class JsonFlatteningDict(collections.MutableMapping):
     "Flatten nested list and dictionaries down to a string to value mapping"
 
     # The format of the keys is
-    #   path := dot (dict_key (path | equals))? | bracket (list_index (path | equals))?
+    #   path := dot (dict_key (path | equals | pound))? | bracket (list_index (path | equals | pound)) |
     #   list_index := integer right_bracket
     #   dict_key := " dict_key_string "
     #   `equals` is the string "="
@@ -30,6 +30,9 @@ class JsonFlatteningDict(collections.MutableMapping):
 
     # ."hello"[0]."world"=
     #     stores the value of d["hello"][0]["world"]
+
+    # ."hello"#
+    #     stores the the length of the dictionary or list d["hello"]
 
     # ."hello".
     #      indicates that d["hello"] is a dictionary (possibly empty)
@@ -57,10 +60,10 @@ class JsonFlatteningDict(collections.MutableMapping):
         return self._flat_store.lookup(item_prefix)
 
     def __len__(self):
-        index = -1
-        for index, _ in enumerate(self):
-            pass
-        return index + 1
+        return self._underlying.get(self._path.length().key(), 0)
+
+    def _set_length(self, value):
+        self._underlying[self._path.length().key()] = value
 
     def __iter__(self):
         key_after = key_after_func(self._underlying)
@@ -79,7 +82,10 @@ class JsonFlatteningDict(collections.MutableMapping):
 
     def _is_child_key(self, key):
         child_path = FlatPath(key)
-        return child_path.prefix().parent().key() == self._prefix
+        try:
+            return child_path.prefix().parent().key() == self._prefix
+        except flatpath.RootNode:
+            return False
 
     def _key_after_iter(self, key_after):
         # If we can do ordering-based lookups (and hence
@@ -91,7 +97,7 @@ class JsonFlatteningDict(collections.MutableMapping):
 
         # We start with something like "a"
         #     We want to find something like "a"."b"
-        #     but not "a".
+        #     but not "a". or "a"#
 
         # So we search for things after "a".
         #   the result found is guaranteed to be a child
@@ -118,7 +124,11 @@ class JsonFlatteningDict(collections.MutableMapping):
                 break
 
     def __delitem__(self, key):
-        self._flat_store.purge_prefix(self._path.dict().lookup(key).key())
+        if key not in self:
+            raise KeyError(key)
+        else:
+            self._flat_store.purge_prefix(self._path.dict().lookup(key).key())
+            self._set_length(len(self) - 1)
 
     def __setitem__(self, key, value):
         #LOGGER.debug('%r: Setting %r -> %r', self, key, value)
@@ -136,19 +146,27 @@ class JsonFlatteningDict(collections.MutableMapping):
         if isinstance(value, (collections.Sequence, collections.Mapping)):
             value = python_copy.copy(value)
 
-        self.pop(key, None)
+        new_key = key not in self
+
+
         if isinstance(value, JSON_VALUE_TYPES):
+            self.pop(key, None)
             flat_key = self._path.dict().lookup(key).value().key()
             self._underlying[flat_key] = value
+            self._set_length(len(self) + 1)
         elif isinstance(value, (dict, collections.MutableMapping)):
+            self.pop(key, None)
             base_path = self._path.dict().lookup(key)
             self._underlying[base_path.dict().key()] = True
+            self._set_length(len(self) + 1)
             dict_store = self[key]
             for dict_key in list(value):
                 dict_store[dict_key] = value[dict_key]
         elif isinstance(value, (list, collections.MutableSequence)):
+            self.pop(key, None)
             base_path = self._path.dict().lookup(key)
             self._underlying[base_path.list().key()] = True
+            self._set_length(len(self) + 1)
 
             list_store = self[key]
             for item in list(value):
@@ -178,11 +196,10 @@ class JsonFlatteningList(collections.MutableSequence):
         return self._getitem(index)
 
     def __len__(self):
-        for i in itertools.count(0):
-            try:
-                self._getitem(i)
-            except IndexError:
-                return i
+        return self._underlying.get(self._path.length().key(), 0)
+
+    def _set_length(self, value):
+        self._underlying[self._path.length().key()] = value
 
     def _simplify_index(self, index):
         length = len(self)
@@ -216,6 +233,9 @@ class JsonFlatteningList(collections.MutableSequence):
 
                 self._flat_store.purge_prefix(self._path.list().key())
                 self._underlying[self._path.list().key()] = True
+
+                self._set_length(0)
+
                 for item in value:
                     self.append(item)
             else:
@@ -267,15 +287,22 @@ class JsonFlatteningList(collections.MutableSequence):
                 self[i] = self[i + 1]
         self._flat_store.purge_prefix(self._path.list().index(length - 1).key())
 
+        self._set_length(length - 1)
+
     def insert(self, pos, value):
         # We need to do our own value shifting
         inserted_value = value
         length = len(self)
         # Copy upwards to avoid temporary values
+
+        self._set_length(length + 1)
+        
         for i in range(length, pos, -1):
             self._set_item(i, self[i - 1], check_index=False)
 
         self._set_item(pos, inserted_value, check_index=False)
+
+
 
 class FlatteningStore(object):
     def __init__(self, underlying):
