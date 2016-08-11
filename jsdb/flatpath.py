@@ -1,7 +1,4 @@
-
-# We might like to do with some sort of parser
-
-import unittest
+# We might like to do this with some sort of parser
 
 def escape_double_quote(string):
     return string.replace('\\', '\\\\').replace('"', '\\"')
@@ -89,6 +86,7 @@ class LengthPath(TypePath):
 
 class IncorrectType(Exception):
     def __init__(self, prefix, got_type, wanted_type):
+        Exception.__init__(self)
         self.prefix = prefix
         self.got_type = got_type
         self.wanted_type = wanted_type
@@ -102,6 +100,7 @@ class RootNode(Exception):
 class PathCorrupt(Exception):
     "This path looks broken"
     def __init__(self, path):
+        Exception.__init__(self)
         self.path = path
 
     def __str__(self):
@@ -293,35 +292,3 @@ class FlatPath(object):
         else:
             raise ValueError(self._prefix)
 
-
-class FlatPathTest(unittest.TestCase):
-    def test_parent(self):
-        self.assertEquals(FlatPath('."hello"[0]').parent(), FlatPath('."hello"'))
-
-    def test_basic(self):
-        self.assertEquals(FlatPath('."hello"').parent(), FlatPath(''))
-        self.assertEquals(FlatPath('."hello"').value(), FlatPath('."hello"='))
-
-        with self.assertRaises(IncorrectType):
-            FlatPath('."hello"=').value()
-
-        with self.assertRaises(RootNode):
-            FlatPath('').parent()
-
-        with self.assertRaises(RootNode):
-            FlatPath('#').prefix().parent()
-
-        self.assertEquals(FlatPath('."hello"').value(), FlatPath('."hello"='))
-        self.assertEquals(FlatPath('."hello"').dict(), FlatPath('."hello".'))
-        self.assertEquals(FlatPath('."hello"').prefix(), FlatPath('."hello"'))
-        self.assertEquals(FlatPath('."hello"#').prefix(), FlatPath('."hello"'))
-        self.assertEquals(FlatPath('."hello"=').prefix(), FlatPath('."hello"'))
-        self.assertEquals(FlatPath('."hello".').prefix(), FlatPath('."hello"'))
-
-    def test_depth(self):
-        self.assertEquals(FlatPath('."hello"').depth(), 1)
-        self.assertEquals(FlatPath('."hello"."two"').depth(), 2)
-        self.assertEquals(FlatPath('."hello"."two"[0]').depth(), 3)
-
-if __name__ == '__main__':
-	unittest.main()
