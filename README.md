@@ -34,15 +34,17 @@ virtualenv env; env/bin/pip install .
 ## Using
 
 ```python
-import jsdb
-db = jsdb.Jsdb('/tmp/file.jsdb')
-db['toplevel'] = 1
-db['nested'] = dict(a=1)
-db['nested']['b'] = 1
-db.commit()
+>>> import jsdb
+>>> db = jsdb.Jsdb('/tmp/file.jsdb')
+>>> db['toplevel'] = 1
+>>> db['nested'] = dict(a=1)
+>>> db['nested']['b'] = 1
+>>> db.commit()
 
-with db:
-    db['toplevel'] = 2
+>>> with db:
+...     db['toplevel'] = 2
+...
+>>>
 ```
 
 ## Developing
@@ -113,4 +115,3 @@ If you use `ZODB`, you may well end up peppering your code with `persistent.list
 - `dobbin` https://pypi.python.org/pypi/dobbin
 - `ZODB` http://www.zodb.org/
 - `jsondb` https://github.com/shaung/jsondb - a similar approach using an `sqlite` database
-
