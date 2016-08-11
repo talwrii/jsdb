@@ -1,6 +1,6 @@
 # jsdb
 
-A moderately efficient, pure-python, single-user, json, object-graph database.
+A moderately efficient, pure-python, single-user, JSON, persistent, object-graph database.
 
 ## Contraindications
 
@@ -11,6 +11,8 @@ You may well not want to use this library:
 - If you want to store schema-less records, you might consider a document store like _MongoDB_, _CouchDB_ or _ElasticSearch_
 - If you want something very easy to call from _Python_, you might want to use something like `shelve` (if you aren't concerned about nesting), or just use `pickle` or `json` directly (if your data is small)
 - Even if you need an object-graph, you might want to use `zodb` (a relatively battle-tested object-graph used with _Zope_)
+
+This library has only just been written, you probably want to be careful when giving it important data.
 
 ## Motivation
 
@@ -38,9 +40,30 @@ with db:
 
 ## Implementation details
 
-We flatten does the nested structure so that we have keys, which are kind of like `a.b.c[0][1]=`. We then store these in a persisted btree (`bsddb`) structure, and make uses of btrees efficient sorted searching to make find the children of a particular node cheap.
+We flatten down a dicts nested structure to a single string-to-string mapping structure. Roughly, the entry at `d["a"]["b"]["c"][0][1]` is stored at a key `a.b.c[0][1]=`. This string-to-string mapping is persisted in a b-tree (`bsddb`).
 
-We then layer rollback and serialization on top of this.
+We make use the b-tree's ordered key structure to make partial iteration moderately efficient.
+
+A layer rollback and object serialization is added on top of this.
+
+## Performance
+
+Looking up a value is $O(log N)$.
+
+Iterating a substructure (dictionary or list) of length $S$ is $O(S log N), regardless of the substructure's depth.
+
+Moving and copying a substructure will deep copy the substructure. Modifying a list in any way results in the entire list deep-copied, even if you are just appending entries; the same is not true for dictionary structures.
+
+It would not be particularly difficult to make appending to a list more efficient, insertion intrinsically requires a deep-copy of
+everything after the insertion point.
+
+## Caveats
+
+Some operations that might be cheap with python dictionaries can be expensive (see the discussion of performance).
+
+Only JSON types can be stored, this is a design decision. It would not be too hard to layer your own pickling on top of this.
+
+This library is new, be careful with it. That said, it _is_ tested with some fairly aggressive fuzzing.
 
 ## Why not ZODB?
 
@@ -73,3 +96,7 @@ Small often means simple and easy to understand.
 If you use `ZODB`, you may well end up peppering your code with `persistent.list.PersistentList` and `persistent.mapping.PersistentMapping`. `ZODB` will sometimes succeed in pickling things that aren't really picklable. Perhaps you'll make a mistake and `ZODB` won't commit your objects for you. `jsdb` is a little more stupid.
 
 ## Similar projects
+
+- `dobbin` https://pypi.python.org/pypi/dobbin_ . This loads your entire data structure into memory.
+- `ZODB`
+
