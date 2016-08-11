@@ -24,6 +24,13 @@ Often, a simple key value store does not provide quite enough structure for thes
 
 This library provides a json-like data store, which is very easy to use, an algorithmically efficient (i.e. not $O(N)$ for every operation!).
 
+## Installing
+
+```sh
+python setup.py install
+virtualenv env; env/bin/pip install .
+```
+
 ## Using
 
 ```python
@@ -36,6 +43,12 @@ db.commit()
 
 with db:
     db['toplevel'] = 2
+```
+
+## Developing
+
+```sh
+nose -m tests
 ```
 
 ## Implementation details
