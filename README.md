@@ -6,23 +6,23 @@ A moderately efficient, pure-python, single-user, JSON, persistent, object-graph
 
 You may well not want to use this library:
 
-- For a general purpose, multi-user data store which allows data to be used in a number of ways, you might like to use a DBMS like _Postgres_ with or without an ORM
-- If you want something small and in-process then you might like to use _sqlite_, again with or without an ORM
-- If you want to store schema-less records, you might consider a document store like _MongoDB_, _CouchDB_ or _ElasticSearch_
-- If you want something very easy to call from _Python_, you might want to use something like `shelve` (if you aren't concerned about nesting), or just use `pickle` or `json` directly (if your data is small)
-- Even if you need an object-graph, you might want to use `zodb` (a relatively battle-tested object-graph used with _Zope_)
+- For a general purpose, multi-user data store which allows data to be used in a number of ways, you might like to use a DBMS like **Postgres** with or without an ORM
+- If you want something small and in-process then you might like to use **sqlite**, again with or without an ORM
+- If you want to store schema-less records, you might consider a document store like **MongoDB**, **CouchDB** or **ElasticSearch**
+- If you want something very easy to call from **Python**, you might want to use something like `shelve` (if you aren't concerned about nesting), or just use `pickle` or `json` directly (if your data is small)
+- Even if you need an object-graph, you might want to use `zodb` (a relatively battle-tested object-graph used with **Zope**)
 
 This library has only just been written, you probably want to be careful when giving it important data.
 
 ## Motivation
 
-*Just persist this data for me and do it efficiently: I don't care about indexes; I don't want to start any processes; I don't want to think about schemas. Yes, I know all the things that these tools would give me, and I don't need them!*
+> Just persist this data for me and do it efficiently:  I don't care about indexes; I don't want to start any processes; I don't want to think about schemas. Yes, I know all the things that these tools would give me, and I don't need them!
 
 There are a number of simple tools where the overhead of running storage processes or defining schemas can feel excessive. For example, small command line tools that need to "just work" or simple games.
 
-Often, a simple key value store does not provide quite enough structure for these tools but _JSON_ does.
+Often, a simple key-value store does not provide quite enough structure for these tools but *JSON* does.
 
-This library provides a json-like data store, which is very easy to use, an algorithmically efficient (i.e. not $O(N)$ for every operation!).
+This library provides a json-like data store, which is very easy to use, an algorithmically efficient (i.e. not **O(N)** for every operation!).
 
 ## Installing
 
@@ -63,9 +63,9 @@ A layer rollback and object serialization is added on top of this.
 
 ## Performance
 
-Looking up a value is $O(log N)$.
+Looking up a value is **O(log N)**.
 
-Iterating a substructure (dictionary or list) of length $S$ is $O(S log N), regardless of the substructure's depth.
+Iterating a substructure (dictionary or list) of length **S** is **O(S log N)**, regardless of the substructure's depth.
 
 Moving and copying a substructure will deep copy the substructure. Modifying a list in any way results in the entire list deep-copied, even if you are just appending entries; the same is not true for dictionary structures.
 
@@ -78,7 +78,7 @@ Some operations that might be cheap with python dictionaries can be expensive (s
 
 Only JSON types can be stored, this is a design decision. It would not be too hard to layer your own pickling on top of this.
 
-This library is new, be careful with it. That said, it _is_ tested with some fairly aggressive fuzzing.
+This library is new, be careful with it. That said, it *is* tested with some fairly aggressive fuzzing.
 
 ## Why not ZODB?
 
