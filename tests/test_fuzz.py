@@ -93,8 +93,9 @@ class JsdbFuzzTest(unittest.TestCase):
         try:
             for iteration in xrange(iterations):
 
-                if iteration % log_every == 0:
-                    print iteration, time.time() - start
+                if log_every is not None:
+                    if iteration % log_every == 0:
+                        print iteration, time.time() - start
 
                 paths = list(self.dict_insertion_path(json_dict))
                 path = random.choice(paths)
@@ -289,5 +290,4 @@ def weighted_random_choice(weights):
         raise Exception('Should never be reached')
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
     unittest.main()
