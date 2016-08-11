@@ -97,6 +97,7 @@ If you use `ZODB`, you may well end up peppering your code with `persistent.list
 
 ## Similar projects
 
-- `dobbin` https://pypi.python.org/pypi/dobbin_ . This loads your entire data structure into memory.
-- `ZODB`
+- `dobbin` https://pypi.python.org/pypi/dobbin
+- `ZODB` http://www.zodb.org/
+- `jsondb` https://github.com/shaung/jsondb - a similar approach using an `sqlite` database
 
