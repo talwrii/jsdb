@@ -133,6 +133,8 @@ class JsonFlatteningDict(collections.MutableMapping):
 
     def __setitem__(self, key, value):
         #LOGGER.debug('%r: Setting %r -> %r', self, key, value)
+        if isinstance(key, unicode):
+            key = key.encode('ascii')
 
         if not isinstance(key, str):
             raise ValueError(key)
@@ -372,4 +374,3 @@ class FlatteningStore(object):
         for key in list(self._underlying):
             if key.startswith(prefix):
                 del self._underlying[key]
-
