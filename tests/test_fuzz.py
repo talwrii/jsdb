@@ -61,7 +61,7 @@ class JsdbFuzzTest(unittest.TestCase):
     #         os.unlink(self._filename)
     #     self.assert_fuzz(make_dict, commit=True, clean_up=clean_up, loops=1, operations=1000, check_comparison=False, log_every=100)
 
-    def assert_fuzz(self, make_dict, commit=False, unique_values=False, clean_up=None, check_comparison=True, loops=20, operations=50, log_every=None):
+    def assert_fuzz(self, make_dict, commit=False, unique_values=False, clean_up=None, check_comparison=True, loops=3, operations=50, log_every=None):
         random.seed(0)
         for _ in xrange(loops):
             self.run_fuzzer(make_dict, operations, commit=commit, unique_values=unique_values, clean_up=clean_up,
