@@ -50,6 +50,7 @@ virtualenv env; env/bin/pip install .
 ## Developing
 
 ```sh
+python setup.py develop
 nose -m tests
 ```
 
