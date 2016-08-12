@@ -1,1 +1,5 @@
 *.pyc
+build
+dist
+jsdb.egg-info
+
