@@ -149,9 +149,6 @@ class JsonFlatteningDict(collections.MutableMapping):
         if isinstance(value, (collections.Sequence, collections.Mapping)):
             value = python_copy.copy(value)
 
-        new_key = key not in self
-
-
         if isinstance(value, JSON_VALUE_TYPES):
             self.pop(key, None)
             flat_key = self._path.dict().lookup(key).value().key()
