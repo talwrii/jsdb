@@ -73,5 +73,11 @@ class TestJsdb(unittest.TestCase):
         d.commit()
         self.assertEquals(d['a'][0][0], 17)
 
+    def test_empty(self):
+        d = Jsdb(self._filename)
+        self.assertEquals(list(d), [])
+        d.rollback()
+
+
 if __name__ == '__main__':
     unittest.main()

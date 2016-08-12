@@ -40,12 +40,14 @@ class Jsdb(collections.MutableMapping):
         return len(self._db)
 
     def __iter__(self):
+        self._open()
         return iter(self._db)
 
     def __delitem__(self, key):
         del self._db[key]
 
     def commit(self):
+        self._open()
         self._db.commit()
 
     def __enter__(self):
@@ -101,4 +103,3 @@ class JsonEncodeDict(collections.MutableMapping):
     def key_after_func(self):
         func = treeutils.key_after_func(self._underlying)
         return func
-
