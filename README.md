@@ -79,7 +79,11 @@ Some operations that might be cheap with python dictionaries can be expensive (s
 
 Only JSON types can be stored, this is a design decision. It would not be too hard to layer your own pickling on top of this.
 
-This library is new, be careful with it. That said, it *is* tested with some fairly aggressive fuzzing.
+This library is new: be careful with it. That said, it *is* tested with some fairly aggressive fuzzing.
+
+This only works with python 2.7 at present, porting to python 3 would not be difficult.
+
+`jsdb` is not thread-safe, but a lock around it.
 
 ## Why not ZODB?
 
@@ -95,7 +99,7 @@ python -c "import jsdb.jsdb; jsdb.jsdb.Jsdb('/tmp/file')"###  0.03s user 0.00s s
 python -c   0.16s user 0.01s system 98% cpu 0.174 total
 ```
 
-Now 0.16s isn't a very long time, until you want to, say, run you program 4 times in a one-liner in response to a key-press. At this point your keypress takes half a second.
+Now 0.16s isn't a very long time, until you want to, say, run you program 4 times in a one-liner in response to a key-press. At this point your keypress takes half a second to run.
 
 ### `ZODB` is kind of big
 
