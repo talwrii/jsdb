@@ -174,6 +174,10 @@ class JsonFlatteningDict(collections.MutableMapping):
         else:
             raise ValueError(value)
 
+    def copy(self):
+        return {k: self[k] for k in self.keys()}
+
+
 class JsonFlatteningList(collections.MutableSequence):
     def __init__(self, underlying, prefix):
         self._prefix = prefix
