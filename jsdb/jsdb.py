@@ -50,6 +50,10 @@ class Jsdb(collections.MutableMapping):
         self._open()
         self._db.commit()
 
+    def rollback(self):
+        self._open()
+        self._db.rollback()
+
     def __enter__(self):
         pass
 

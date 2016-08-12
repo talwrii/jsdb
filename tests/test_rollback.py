@@ -6,7 +6,7 @@ class TestRollback(unittest.TestCase):
     def _commit(self, item):
         item._commit()  # pylint: disable=protected-access
 
-    def test_rollback(self):
+    def test_commit(self):
         under = dict(a=1)
         roll = RollbackDict(under)
         self.assertEquals(roll['a'], 1)
@@ -86,6 +86,7 @@ class TestRollback(unittest.TestCase):
         under = dict()
         d = RollbackDict(under)
         d['a'] = []
+
         self._commit(d)
         d['a'].insert(0, [])
         self._commit(d)
@@ -94,6 +95,16 @@ class TestRollback(unittest.TestCase):
         d['a'][0][0].insert(0, 17)
         self._commit(d)
         self.assertEquals(under['a'][0][0][0], 17)
+
+    def test_rollback(self):
+        under = dict()
+        d = RollbackDict(under)
+        d['a'] = 1
+        d.rollback()
+        d['b'] = 2
+        d.commit()
+        self.assertEquals(under['b'], 2)
+        self.assertTrue('a' not in under, 1)
 
 if __name__ == '__main__':
     unittest.main()

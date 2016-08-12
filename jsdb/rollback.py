@@ -86,6 +86,16 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
             raise Exception('Can only commit at top level')
         self._commit()
 
+    def rollback(self):
+        if self._parent is not None:
+            raise Exception('Can only commit at top level')
+        self._rollback()
+
+    def _rollback(self):
+        for desc in self._changed_descendents:
+            desc._rollback()
+        self._updates.clear()
+
     def _commit(self):
         for desc in self._changed_descendents:
             desc._commit() # pylint: disable=protected-access
@@ -181,3 +191,5 @@ class RollbackList(_RollbackMixin, collections.MutableSequence):
             self._underlying[:] = new_values
         self._new = None
 
+    def _rollback(self):
+        self._new = None
