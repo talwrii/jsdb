@@ -78,6 +78,16 @@ class TestJsdb(unittest.TestCase):
         self.assertEquals(list(d), [])
         d.rollback()
 
+    def test_close(self):
+        d = Jsdb(self._filename)
+        d['a'] = 1
+        d.commit()
+        d.close()
+
+        d = Jsdb(self._filename)
+        self.assertEquals(d['a'], 1)
+
+
 
 if __name__ == '__main__':
     unittest.main()
