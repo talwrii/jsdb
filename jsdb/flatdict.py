@@ -109,10 +109,16 @@ class JsonFlatteningDict(collections.MutableMapping):
         except KeyError:
             return
 
+        last_yielded = None # keys have to be strings
+
         while True:
             if not child_path.key().startswith(self._path.dict().key()):
                 break
-            yield child_path.prefix().key_string()
+
+            yielded = child_path.prefix().key_string()
+            if yielded != last_yielded:
+                yield yielded
+                last_yielded = yielded
 
             # We have something like "a"."b". or "a"."b"[ or "a"."b"=
             # We want to skip over all the children

@@ -229,5 +229,13 @@ class TestFlatDict(unittest.TestCase):
         d["a"][:] = [1, 2, 3]
         self.assertEquals(reference[1], 2)
 
+    def test_iter(self):
+        d = JsonFlatteningDict(FakeOrderedDict())
+        d["a"] = 1
+        d["b"] = {'blah': 1}
+        d["c"] = ["list", "item"]
+        self.assertEquals(sorted(d.keys()), ["a", "b", "c"])
+
+
 if __name__ == '__main__':
     unittest.main()
