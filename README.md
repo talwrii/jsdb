@@ -51,7 +51,7 @@ virtualenv env; env/bin/pip install .
 
 ```sh
 python setup.py develop
-nose -m tests
+python -m nose tests
 ```
 
 ## Implementation details
