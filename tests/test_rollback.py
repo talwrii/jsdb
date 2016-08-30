@@ -106,5 +106,18 @@ class TestRollback(unittest.TestCase):
         self.assertEquals(under['b'], 2)
         self.assertTrue('a' not in under, 1)
 
+    def test_move_delete(self):
+        under = dict()
+        d = RollbackDict(under)
+        d['a'] = dict(key=1)
+        d.commit()
+        d['b'] = d['a']
+        del d['a']
+        d.commit()
+        self.assertEquals(d['b']['key'], 1)
+        self.assertEquals(under['b']['key'], 1)
+
+
+
 if __name__ == '__main__':
     unittest.main()

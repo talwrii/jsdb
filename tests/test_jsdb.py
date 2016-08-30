@@ -73,6 +73,15 @@ class TestJsdb(unittest.TestCase):
         d.commit()
         self.assertEquals(d['a'][0][0], 17)
 
+    def test_move_delete(self):
+        d = Jsdb(self._filename)
+        d['a'] = dict(k=1)
+        d.commit()
+        d['b'] = d['a']
+        del d['a']
+        d.commit()
+        self.assertEquals(d['b']['k'], 1)
+
     def test_empty(self):
         d = Jsdb(self._filename)
         self.assertEquals(list(d), [])

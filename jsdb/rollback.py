@@ -101,15 +101,24 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
             desc._commit() # pylint: disable=protected-access
         del self._changed_descendents[:]
 
-        for k, v in self._updates.items():
+        # There was a logic bug here related to
+        #    update / delete order. This might
+        #    deserve some proof.
+        for k, v in list(self._updates.items()): # python3
             if v == DELETED:
-                del self._underlying[k]
+                pass
             else:
                 if isinstance(v, _RollbackMixin):
                     v._commit() # pylint: disable=protected-access
                     self._underlying[k] = v._underlying # pylint: disable=protected-access
                 else:
                     self._underlying[k] = v
+                self._updates.pop(k)
+
+        for k, v in list(self._updates.items()): # python3
+            if v != DELETED:
+                raise ValueError(k)
+            del self._underlying[k]
         self._updates.clear()
 
 class RollbackList(_RollbackMixin, collections.MutableSequence):
