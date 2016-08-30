@@ -3,7 +3,6 @@
 
 import collections
 import logging
-import unittest
 
 from . import python_copy
 from .flatpath import FlatPath
