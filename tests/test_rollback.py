@@ -117,7 +117,17 @@ class TestRollback(unittest.TestCase):
         self.assertEquals(d['b']['key'], 1)
         self.assertEquals(under['b']['key'], 1)
 
+    def test_missing_delete(self):
+        # Normal missing
+        d = RollbackDict(dict())
+        with self.assertRaises(KeyError):
+            del d['a']
 
+        # Double delete
+        d['b'] = 1
+        del d['b']
+        with self.assertRaises(KeyError):
+            del d['b']
 
 if __name__ == '__main__':
     unittest.main()

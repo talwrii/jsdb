@@ -74,7 +74,10 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
                 yield key
 
     def __delitem__(self, key):
-        self._updates[key] = DELETED
+        if key in self and self._updates.get(key, None) != DELETED:
+            self._updates[key] = DELETED
+        else:
+            raise KeyError(key)
 
     def __len__(self):
         additions = len([x for x in self._updates.keys() if x not in self._underlying])
