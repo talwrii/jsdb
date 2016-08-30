@@ -129,5 +129,12 @@ class TestRollback(unittest.TestCase):
         with self.assertRaises(KeyError):
             del d['b']
 
+    def test_length(self):
+        d = RollbackDict(dict())
+        d['a'] = 1
+        self.assertEquals(len(d), 1)
+        del d['a']
+        self.assertEquals(len(d), 0)
+
 if __name__ == '__main__':
     unittest.main()
