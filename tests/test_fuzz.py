@@ -1,13 +1,15 @@
+#!/usr/bin/python
 import bsddb
 import copy
 import logging
 import os
 import random
+import shutil
 import tempfile
 import time
 import unittest
 
-from jsdb import flatdict, jsdb, python_copy, rollback
+from jsdb import flatdict, jsdb, leveldict, python_copy, rollback
 from testutils import FakeOrderedDict
 
 LOGGER = logging.getLogger('jsdb.fuzztest')
@@ -30,6 +32,12 @@ class JsdbFuzzTest(unittest.TestCase):
         make_dict = lambda: jsdb.Jsdb(self._filename)
         def clean_up():
             os.unlink(self._filename)
+        self.assert_fuzz(make_dict, commit=True, clean_up=clean_up)
+
+    def test_jsdb_leveldb(self):
+        make_dict = lambda: jsdb.Jsdb(self._filename, storage_class=leveldict.LevelDict)
+        def clean_up():
+            shutil.rmtree(self._filename)
         self.assert_fuzz(make_dict, commit=True, clean_up=clean_up)
 
     def test_flattening_bsddb(self):
@@ -176,6 +184,9 @@ class JsdbFuzzTest(unittest.TestCase):
             print '\n'.join(equivalent_code)
             print len(equivalent_code), 'Instructions'
             raise
+        finally:
+            if hasattr(db, 'close'):
+                db.close()
 
         if clean_up:
             clean_up()

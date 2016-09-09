@@ -13,19 +13,24 @@ from . import treeutils
 LOGGER = logging.getLogger('jsdb')
 
 class Jsdb(collections.MutableMapping):
-    """A file-backed, persisted-object graph supporting json types"""
-    def __init__(self, filename):
+    """A file-backed, persisted-object graph supporting json types.
+
+    `storage_class` can be `bsddb.btopen`, `jsdb.leveldict.LevelDict`, or another
+    instance of `jsdb.interface.JsdbStorageInterface`.
+    """
+    def __init__(self, filename, storage_class=bsddb.btopen):
         self._filename = filename
         self._db = None
         self._data_file = None
         self._closed = False
+        self._storage_class = storage_class
 
     def _open(self):
         if self._closed:
             raise DbClosedError()
 
         if self._db is None:
-            self._data_file = bsddb.btopen(self._filename, 'w')
+            self._data_file = self._storage_class(self._filename)
             self._db = RollbackDict(flatdict.JsonFlatteningDict(JsonEncodeDict(self._data_file)))
 
     def __getitem__(self, key):

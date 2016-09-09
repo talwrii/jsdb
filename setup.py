@@ -16,6 +16,7 @@ setup(
     url='https://github.com/talwrii/jsdb',
     description='A moderately efficient, pure-python, single-user, JSON, persistent, object-graph database',
     long_description=read('README.md'),
+    install_requires=['plyvel'],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: BSD License"
