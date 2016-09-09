@@ -1,4 +1,5 @@
-"""A dictionary that flattens a nested key-value mappings and lists into a store that does not support nesting.
+"""A dictionary that flattens a nested key-value-mapping-and-list
+structure into a store that does not support nesting.
 """
 
 import collections
