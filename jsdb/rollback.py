@@ -32,6 +32,7 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
     def __init__(self, underlying, parent=None):
         self._underlying = underlying
         self._updates = {}
+        self._singleton_children = {}
         self._parent = parent
         self._changed_descendents = []
 
@@ -40,17 +41,18 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
 
     def __getitem__(self, key):
         if key in self._updates:
-            updated =  self._updates[key]
+            updated = self._updates[key]
             if updated == DELETED:
                 raise KeyError(key)
             else:
                 return updated
+        elif key in self._singleton_children:
+            return  self._singleton_children[key]
         else:
             stored = self._underlying[key]
             wrapped = self._rollback_wrap(stored)
             if isinstance(wrapped, _RollbackMixin):
-                self._updates[key] = wrapped
-
+                self._singleton_children[key] = wrapped
             return wrapped
 
     def __setitem__(self, key, value):
