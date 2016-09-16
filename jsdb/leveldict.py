@@ -1,12 +1,17 @@
 "Leveldb dictionary interface, like bsddb"
 
 import plyvel
+import logging
+
+LOGGER = logging.getLogger('jsdb.leveldict')
 
 from . import interface
 
 class LevelDict(interface.JsdbStorageInterface):
     def __init__(self, filename):
         interface.JsdbStorageInterface.__init__(self, filename)
+        LOGGER.debug('Opening leveldb file %r', filename)
+        self._filename = filename
         self._db = plyvel.DB(filename, create_if_missing=True)
 
     def __setitem__(self, key, value):
@@ -34,6 +39,7 @@ class LevelDict(interface.JsdbStorageInterface):
         self._db.delete(key) # delete does not raise on error
 
     def close(self):
+        LOGGER.debug('Closing level db database: %r', self._filename)
         self._db.close()
 
     def key_after(self, target_key):

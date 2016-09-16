@@ -65,6 +65,7 @@ class Jsdb(collections.MutableMapping):
     def __exit__(self, exc_type, _exc_value, _tb):
         if exc_type is None:
             self.commit()
+            self.close()
 
     def close(self):
         if self._data_file:
