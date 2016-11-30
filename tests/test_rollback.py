@@ -136,5 +136,14 @@ class TestRollback(unittest.TestCase):
         del d['a']
         self.assertEquals(len(d), 0)
 
+    def test_delete_in_child(self):
+        underlying = dict(a=dict(b=1))
+        d = RollbackDict(underlying)
+        child = d['a']
+        del child['b']
+        d.commit()
+        d = RollbackDict(underlying)
+        self.assertFalse('b' in d['a'])
+
 if __name__ == '__main__':
     unittest.main()

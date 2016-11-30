@@ -76,6 +76,9 @@ class RollbackDict(_RollbackMixin, collections.MutableMapping):
                 yield key
 
     def __delitem__(self, key):
+        if self._parent:
+            self._parent._record_changed(self) # pylint: disable=protected-access
+
         if key in self and self._updates.get(key, None) != DELETED:
             self._updates[key] = DELETED
         else:
